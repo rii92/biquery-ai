@@ -415,5 +415,97 @@
       "Siapa saja yang tidak hadir di kelas X IPA?"
     ],
     "active": true
+  },
+  {
+    "id": "bp_total_masuk",
+    "description": "BP Batam: Total permohonan izin masuk per minggu (Executive Summary)",
+    "sql_template": "SELECT\n    CAST(TRUNC(TGL_STATUS_TERAKHIR, 'IW') AS TIMESTAMP) AS PERIODE,\n    COUNT(*) AS TOTAL_MASUK\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE PERIZINAN IN ('PL', 'PB', 'PBUMKU', 'PKKPRL', 'PB')\n  AND {tgl_status_terakhir}\n  AND {perizinan}\nGROUP BY TRUNC(TGL_STATUS_TERAKHIR, 'IW')\nORDER BY TRUNC(TGL_STATUS_TERAKHIR, 'IW') ASC",
+    "params": {
+      "tgl_status_terakhir": "Filter tanggal (contoh: TGL_STATUS_TERAKHIR >= TO_DATE('2024-01-01','YYYY-MM-DD'))",
+      "perizinan": "Filter jenis izin (contoh: PERIZINAN IN ('PB','PL'))"
+    },
+    "examples": [
+      "Total masuk izin BP Batam",
+      "Berapa total permohonan izin masuk?"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "bp_izin_terbit_per_bulan",
+    "description": "BP Batam: Izin terbit per minggu (Executive Summary)",
+    "sql_template": "SELECT\n    CAST(TRUNC(TGL_STATUS_TERAKHIR, 'IW') AS TIMESTAMP) AS PERIODE,\n    COUNT(*) AS IZIN_TERBIT\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE KATEGORI_STATUS = 'Terbit'\n  AND PERIZINAN IN ('PB', 'PBUMKU', 'PL', 'PKKPRL', 'PPKH')\n  AND {tgl_status_terakhir}\n  AND {perizinan}\nGROUP BY TRUNC(TGL_STATUS_TERAKHIR, 'IW')\nORDER BY TRUNC(TGL_STATUS_TERAKHIR, 'IW') ASC",
+    "params": {
+      "tgl_status_terakhir": "Filter tanggal",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Izin terbit BP Batam",
+      "Jumlah izin yang sudah terbit"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "bp_total_backlog_per_bulan",
+    "description": "BP Batam: Total backlog (belum terbit) per minggu (Executive Summary)",
+    "sql_template": "SELECT\n    CAST(TRUNC(TGL_STATUS_TERAKHIR, 'IW') AS TIMESTAMP) AS PERIODE,\n    COUNT(*) AS TOTAL_BACKLOG\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE KATEGORI_STATUS NOT IN ('Terbit')\n  AND KATEGORI_STATUS NOT LIKE '%Ditolak%'\n  AND KATEGORI_STATUS NOT LIKE '%Batal%'\n  AND PERIZINAN IN ('PB', 'PBUMKU', 'PL', 'PKKPRL', 'PPKH')\n  AND {tgl_status_terakhir}\n  AND {perizinan}\nGROUP BY TRUNC(TGL_STATUS_TERAKHIR, 'IW')\nORDER BY TRUNC(TGL_STATUS_TERAKHIR, 'IW') ASC",
+    "params": {
+      "tgl_status_terakhir": "Filter tanggal",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Total backlog BP Batam",
+      "Berapa izin yang masih backlog?"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "bp_dalam_proses",
+    "description": "BP Batam: Permohonan izin yang masih dalam proses per hari (Executive Summary)",
+    "sql_template": "SELECT\n    TRUNC(TGL_STATUS_TERAKHIR, 'DD') AS TANGGAL,\n    COUNT(*) AS JUMLAH_PERMOHONAN\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE UPPER(KATEGORI_STATUS) LIKE '%DALAM PROSES%'\n  AND TGL_STATUS_TERAKHIR IS NOT NULL\n  AND PERIZINAN IN ('PB', 'PBUMKU', 'PL', 'PKKPRL', 'PPKH')\n  AND {tgl_status_terakhir}\n  AND {perizinan}\nGROUP BY TRUNC(TGL_STATUS_TERAKHIR, 'DD')\nORDER BY TRUNC(TGL_STATUS_TERAKHIR, 'DD') ASC",
+    "params": {
+      "tgl_status_terakhir": "Filter tanggal",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Izin dalam proses BP Batam",
+      "Permohonan yang masih diproses"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "bp_sebaran_jenis_izin",
+    "description": "BP Batam: Sebaran permohonan berdasarkan jenis izin dan kelompok status (Executive Summary)",
+    "sql_template": "SELECT\n    CASE PERIZINAN\n        WHEN 'PBUMKU' THEN 'PBUMKU'\n        WHEN 'PB' THEN 'PB'\n        WHEN 'PL' THEN 'PL'\n        WHEN 'PKKPRL' THEN 'PKKPRL'\n        WHEN 'PPKH' THEN 'PPKH'\n        ELSE PERIZINAN\n    END AS JENIS_IZIN,\n    CASE\n        WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n        WHEN KATEGORI_STATUS LIKE '%Tolak%'\n          OR KATEGORI_STATUS LIKE '%Ditolak%'\n          OR KATEGORI_STATUS LIKE '%Rejected%' THEN 'Tolak'\n        ELSE 'Proses'\n    END AS KELOMPOK_STATUS,\n    COUNT(*) AS JUMLAH\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE 1 = 1\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n  AND {kategori_status}\n  AND {perizinan}\n  AND {tgl_status_terakhir}\nGROUP BY\n    PERIZINAN,\n    CASE\n        WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n        WHEN KATEGORI_STATUS LIKE '%Tolak%'\n          OR KATEGORI_STATUS LIKE '%Ditolak%'\n          OR KATEGORI_STATUS LIKE '%Rejected%' THEN 'Tolak'\n        ELSE 'Proses'\n    END\nORDER BY JUMLAH DESC",
+    "params": {
+      "kategori_status": "Filter kategori status (contoh: KATEGORI_STATUS = 'Terbit')",
+      "perizinan": "Filter jenis izin",
+      "tgl_status_terakhir": "Filter tanggal"
+    },
+    "examples": [
+      "Sebaran izin BP Batam",
+      "Komposisi status izin berdasarkan jenis"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "bp_komposisi_status",
+    "description": "BP Batam: Komposisi keseluruhan status perizinan per minggu (Executive Summary)",
+    "sql_template": "SELECT\n    CAST(TRUNC(TGL_STATUS_TERAKHIR, 'IW') AS TIMESTAMP) AS PERIODE,\n    CASE\n        WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n        WHEN KATEGORI_STATUS LIKE '%Tolak%'\n          OR KATEGORI_STATUS LIKE '%Ditolak%'\n          OR KATEGORI_STATUS LIKE '%Rejected%' THEN 'Ditolak'\n        ELSE 'Dalam Proses'\n    END AS KELOMPOK_STATUS,\n    COUNT(*) AS JUMLAH\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE {tgl_status_terakhir}\n  AND PERIZINAN IN ('PB', 'PBUMKU', 'PL', 'PKKPRL', 'PPKH')\n  AND {perizinan}\n  AND {kategori_status}\nGROUP BY\n    TRUNC(TGL_STATUS_TERAKHIR, 'IW'),\n    CASE\n        WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n        WHEN KATEGORI_STATUS LIKE '%Tolak%'\n          OR KATEGORI_STATUS LIKE '%Ditolak%'\n          OR KATEGORI_STATUS LIKE '%Rejected%' THEN 'Ditolak'\n        ELSE 'Dalam Proses'\n    END\nORDER BY TRUNC(TGL_STATUS_TERAKHIR, 'IW') ASC, JUMLAH DESC",
+    "params": {
+      "tgl_status_terakhir": "Filter tanggal",
+      "perizinan": "Filter jenis izin",
+      "kategori_status": "Filter kategori status"
+    },
+    "examples": [
+      "Komposisi status perizinan BP Batam",
+      "Rekap status izin terbit ditolak proses"
+    ],
+    "active": true,
+    "source": "bp"
   }
 ]

@@ -5,6 +5,7 @@ class SQLValidator:
         "students", "teachers", "classrooms", "subjects", "grades",
         "attendance", "extracurriculars", "student_extracurriculars",
         "homeroom_teachers",
+        "bi_mart_status_perizinan",
     ]
     FORBIDDEN = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER"]
 
@@ -17,9 +18,12 @@ class SQLValidator:
         for kw in self.FORBIDDEN:
             if kw.lower() in s:
                 return False
-        tables = re.findall(r"(?:from|join)\s+(\w+)", sql, re.I)
+        tables = re.findall(r"(?:from|join)\s+(\w+(?:\.\w+)?)", sql, re.I)
         tables = [t for t in tables if t.lower() not in self._cte_aliases(sql)]
-        return all(t.lower() in self.ALLOWED_TABLES for t in tables)
+        return all(self._normalize(t) in self.ALLOWED_TABLES for t in tables)
+
+    def _normalize(self, name: str) -> str:
+        return name.split(".")[-1].lower()
 
     def _cte_aliases(self, sql: str) -> set:
         aliases = set()

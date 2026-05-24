@@ -24,3 +24,9 @@ if _db_is_local_env is not None:
     DB_IS_LOCAL = _db_is_local_env.lower() in ("1", "true", "yes")
 else:
     DB_IS_LOCAL = DB_HOST in ("localhost", "127.0.0.1")
+
+# ── BP Batam Data Warehouse ───────────────────────────
+BP_DB_USER = os.getenv("BP_DB_USER", "us_dwh")
+BP_DB_PASSWORD = os.getenv("BP_DB_PASSWORD", "DeWeHaRS20DuaFive")
+BP_DB_HOST = os.getenv("BP_DB_HOST", "bpdb-scan.bpbatam.go.id:1521")
+BP_DB_SERVICE_NAME = os.getenv("BP_DB_SERVICE_NAME", "begs")

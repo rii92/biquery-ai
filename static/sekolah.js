@@ -1,7 +1,7 @@
-/* BP Batam — frontend */
+/* EduQuery AI — logika frontend */
 
 const API_URL = '/api/query';
-const STORAGE_KEY = 'eduquery_bp_history';
+const STORAGE_KEY = 'eduquery_history';
 
 let sqlEditor = null;
 let timerInterval = null;
@@ -9,6 +9,19 @@ let startTime = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
   loadHistory();
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(cfg => {
+      document.getElementById('modelBadge').textContent = cfg.model;
+      const yearSelect = document.getElementById('filterYear');
+      (cfg.academic_years || []).forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSelect.appendChild(opt);
+      });
+    });
+
   sqlEditor = CodeMirror(document.getElementById('sqlBox'), {
     value: '',
     mode: 'text/x-mysql',
@@ -21,14 +34,14 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+/* ── Kirim (SSE) ────────────────────────────────── */
+
 function getFilterParams() {
-  const tgl = document.getElementById('filterTgl').value || '';
-  const izin = document.getElementById('filterIzin').value || '';
-  const status = document.getElementById('filterStatus').value || '';
+  const year = document.getElementById('filterYear').value || 'Semua';
+  const semester = document.getElementById('filterSemester').value || 'Semua';
   const params = new URLSearchParams();
-  if (tgl) params.set('tgl_status_terakhir', tgl);
-  if (izin) params.set('perizinan', izin);
-  if (status) params.set('kategori_status', status);
+  params.set('academic_year', year);
+  params.set('semester', semester);
   return params.toString();
 }
 
@@ -37,52 +50,45 @@ async function submitQuery() {
   const question = input.value.trim();
   if (!question) return;
 
-  try {
-    showLoading(true);
-    hideResult();
-    resetSteps();
-    startTimer();
+  showLoading(true);
+  hideResult();
+  resetSteps();
+  startTimer();
 
-    const encoded = encodeURIComponent(question);
-    const filterParams = getFilterParams();
-    const url = `/api/query/stream?message=${encoded}${filterParams ? '&' + filterParams : ''}`;
-    const eventSource = new EventSource(url);
+  const encoded = encodeURIComponent(question);
+  const filterParams = getFilterParams();
+  const url = `/api/query/stream?message=${encoded}${filterParams ? '&' + filterParams : ''}`;
+  const eventSource = new EventSource(url);
 
-    eventSource.onmessage = function(event) {
-      try {
-        const data = JSON.parse(event.data);
+  eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
 
-        if (data.step) {
-          updateStep(data.step);
-        }
-        if (data.progress != null) {
-          updateProgress(data.progress);
-        }
-        if (data.done) {
-          eventSource.close();
-          stopTimer();
-          showResult(question, data);
-          saveToHistory(question, data);
-          showLoading(false);
-        }
-      } catch (e) {
-        console.error('SSE parse error:', e);
-      }
-    };
+    if (data.step) {
+      updateStep(data.step);
+    }
 
-    eventSource.onerror = function() {
+    if (data.progress != null) {
+      updateProgress(data.progress);
+    }
+
+    if (data.done) {
       eventSource.close();
       stopTimer();
-      showError('Gagal terhubung ke server.');
+      showResult(question, data);
+      saveToHistory(question, data);
       showLoading(false);
-    };
-  } catch (e) {
-    console.error('submitQuery error:', e);
+    }
+  };
+
+  eventSource.onerror = function() {
+    eventSource.close();
     stopTimer();
-    showError('Terjadi kesalahan: ' + e.message);
+    showError('Gagal terhubung ke server.');
     showLoading(false);
-  }
+  };
 }
+
+/* ── Timer ─────────────────────────────────────── */
 
 function startTimer() {
   startTime = performance.now();
@@ -99,6 +105,8 @@ function stopTimer() {
     timerInterval = null;
   }
 }
+
+/* ── Tampilkan hasil ────────────────────────────── */
 
 function showResult(question, data) {
   const panel = document.getElementById('resultPanel');
@@ -133,12 +141,16 @@ function showError(msg) {
   document.getElementById('resultTable').innerHTML = '';
 }
 
+/* ── Tab hasil ─────────────────────────────────── */
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
   document.getElementById(name + 'Panel').classList.add('active');
 }
+
+/* ── Tabel hasil ───────────────────────────────── */
 
 function renderTable(data) {
   const container = document.getElementById('resultTable');
@@ -147,7 +159,7 @@ function renderTable(data) {
     return;
   }
   const cols = Object.keys(data[0]);
-  let html = '<table class="table table-sm table-bordered table-striped mb-0"><thead class="table-warning"><tr>';
+  let html = '<table class="table table-sm table-bordered table-striped mb-0"><thead class="table-secondary"><tr>';
   cols.forEach(c => { html += `<th>${escapeHtml(c)}</th>`; });
   html += '</tr></thead><tbody>';
   data.forEach(row => {
@@ -160,6 +172,8 @@ function renderTable(data) {
   html += '</tbody></table>';
   container.innerHTML = html;
 }
+
+/* ── Step progress ──────────────────────────────── */
 
 function resetSteps() {
   document.querySelectorAll('.step-item').forEach(el => {
@@ -185,7 +199,7 @@ function updateStep(stepText) {
   document.querySelectorAll('.step-item').forEach(el => {
     if (el.dataset.step === stepId) {
       el.classList.add('active');
-      el.querySelector('i').className = 'bi bi-arrow-repeat me-2 text-warning';
+      el.querySelector('i').className = 'bi bi-arrow-repeat me-2 text-primary';
       el.querySelector('.step-text').style.fontWeight = 'bold';
     } else if (!el.classList.contains('done')) {
       el.querySelector('i').className = 'bi bi-hourglass-split me-2 text-muted';
@@ -197,6 +211,7 @@ function updateProgress(pct) {
   const progressBar = document.getElementById('progressBar');
   if (progressBar) progressBar.style.width = pct + '%';
 
+  // Tandai step selesai jika progress >= threshold
   if (pct >= 30) markStepDone('analisis');
   if (pct >= 50) markStepDone('sql');
   if (pct >= 70) markStepDone('validasi');
@@ -213,17 +228,22 @@ function markStepDone(stepId) {
   el.querySelector('.step-text').style.fontWeight = 'normal';
 }
 
+/* ── Loading ─────────────────────────────────────── */
+
 function showLoading(v) {
   document.getElementById('loadingPanel').classList.toggle('d-none', !v);
 }
 
+/* ── Tombol contoh ─────────────────────────────── */
+
 function useExample(el) {
   document.getElementById('questionInput').value = el.textContent.trim();
-  document.getElementById('filterTgl').value = '';
-  document.getElementById('filterIzin').value = '';
-  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterYear').value = 'Semua';
+  document.getElementById('filterSemester').value = 'Semua';
   document.getElementById('questionInput').focus();
 }
+
+/* ── Riwayat (localStorage) ─────────────────────── */
 
 function getHistory() {
   try {
@@ -276,7 +296,8 @@ function renderHistory() {
           <div><span class="badge bg-secondary me-1">${escapeHtml(elapsed)}</span>${escapeHtml(item.question)}</div>
           <small class="text-muted">${escapeHtml(truncated)}</small>
         </div>
-        <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteHistoryItem(${idx})" title="Hapus">
+        <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteHistoryItem(${idx})"
+                title="Hapus">
           <i class="bi bi-x"></i>
         </button>
       </div>
@@ -306,6 +327,8 @@ function clearHistory() {
   renderHistory();
   hideResult();
 }
+
+/* ── Pembantu ───────────────────────────────────── */
 
 function escapeHtml(str) {
   const div = document.createElement('div');

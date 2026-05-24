@@ -232,4 +232,27 @@ def classify_by_keyword(question: str) -> Dict[str, Any] | None:
         ekstra = _extract_extracurricular(q)
         return {"intent": "student_extracurriculars", "extracurricular": ekstra}
 
+    # ── BP BATAM ─────────────────────────────────────────────────
+    has_izin = re.search(r"izin", q)
+    has_bp = re.search(r"\bbp\b|bp[\s_]?batam|data.?warehouse", q)
+    has_perizinan = re.search(r"perizinan|permohonan|backlog", q)
+    has_status = re.search(r"status\s*perizinan", q)
+
+    if has_bp or has_perizinan or has_status or has_izin:
+        if re.search(r"(?:total|jumlah).*(?:masuk|masuk.*izin)", q):
+            return {"intent": "bp_total_masuk"}
+        if re.search(r"backlog|belum.*terbit|menunggu", q):
+            return {"intent": "bp_total_backlog_per_bulan"}
+        if re.search(r"izin.*terbit|terbit.*izin|jumlah.*izin.*terbit", q):
+            return {"intent": "bp_izin_terbit_per_bulan"}
+        if re.search(r"dalam.*proses|proses.*izin|masih.*diproses|sedang.*proses", q):
+            return {"intent": "bp_dalam_proses"}
+        if re.search(r"komposisi.*status|rekap.*status|status.*perizinan", q):
+            return {"intent": "bp_komposisi_status"}
+        if re.search(r"sebaran|jenis.*izin", q):
+            return {"intent": "bp_sebaran_jenis_izin"}
+        if re.search(r"izin", q):
+            return {"intent": "bp_izin_terbit_per_bulan"}
+        return {"intent": "bp_total_masuk"}
+
     return None

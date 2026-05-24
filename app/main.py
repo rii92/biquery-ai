@@ -1,7 +1,7 @@
 """Titik masuk FastAPI.
 
-Melayani frontend statis, webhook WhatsApp, dan endpoint /api/query
-yang dipakai oleh frontend.
+Halaman utama (/) adalah BP Batam Data Warehouse.
+Halaman sekolah (/sekolah) tetap tersedia sebagai secondary.
 """
 from pathlib import Path
 
@@ -14,7 +14,7 @@ from app.api.query import router as query_router
 from app.api.config import router as config_router
 from app.api.intents import router as intents_router
 
-app = FastAPI(title="EduQuery AI")
+app = FastAPI(title="EduQuery AI — BP Batam")
 
 # ── Berkas statis ─────────────────────────────────
 static_dir = Path(__file__).resolve().parent.parent / "static"
@@ -29,6 +29,10 @@ app.include_router(webhook_router)
 app.include_router(query_router)
 app.include_router(config_router)
 app.include_router(intents_router)
+
+@app.get("/sekolah")
+def sekolah_page():
+    return FileResponse(str(static_dir / "sekolah.html"))
 
 @app.get("/intents")
 def intents_page():
