@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduQuery AI — Kelola Intent</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/app.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand text-white fw-bold" href="/">
+        <i class="bi bi-search-heart me-2"></i>EduQuery AI
+      </a>
+      <div class="d-flex gap-2">
+        <a href="/intents" class="btn btn-light btn-sm">
+          <i class="bi bi-gear"></i> Intent
+        </a>
+      </div>
+      <div class="ms-auto d-flex gap-2">
+        <a href="/" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-chat-dots"></i> Tanya
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Daftar Intent</h5>
+      <button class="btn btn-primary btn-sm" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> Intent Baru
+      </button>
+    </div>
+
+    <div id="loadingSpinner" class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 text-muted small">Memuat daftar intent...</p>
+    </div>
+
+    <div id="intentTable" class="d-none">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+          <thead class="table-primary">
+            <tr>
+              <th style="width:180px;">ID</th>
+              <th>Deskripsi</th>
+              <th style="width:60px;">Aktif</th>
+              <th style="width:100px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="intentBody"></tbody>
+        </table>
+      </div>
+      <nav id="paginationNav" class="d-none">
+        <ul class="pagination pagination-sm justify-content-center mb-0 mt-2"></ul>
+      </nav>
+    </div>
+
+    <div id="emptyState" class="text-center py-5 d-none">
+      <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+      <p class="text-muted">Belum ada intent. Klik "Intent Baru" untuk menambahkan.</p>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit -->
+  <div class="modal fade" id="intentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalTitle"><i class="bi bi-pencil me-1"></i> Intent</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editId">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">ID Intent</label>
+            <input type="text" id="intentId" class="form-control" placeholder="contoh: count_graduates">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Deskripsi</label>
+            <input type="text" id="intentDesc" class="form-control" placeholder="contoh: Jumlah siswa lulus">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">SQL Template</label>
+            <textarea id="intentSql" class="form-control font-monospace small" rows="3" placeholder="SELECT COUNT(*) FROM students WHERE status='lulus';"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Parameter <small class="text-muted">(format: nama_param:deskripsi, satu per baris)</small></label>
+            <textarea id="intentParams" class="form-control small" rows="3" placeholder="kelas:Nama kelas&#10;subject:Mata pelajaran"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Contoh Pertanyaan <small class="text-muted">(satu per baris)</small></label>
+            <textarea id="intentExamples" class="form-control small" rows="2" placeholder="Berapa siswa lulus?"></textarea>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intentActive" class="form-check-input" checked>
+            <label class="form-check-label small" for="intentActive">Aktif</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button class="btn btn-primary" onclick="saveIntent()"><i class="bi bi-check-lg"></i> Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Hapus -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h6 class="modal-title"><i class="bi bi-exclamation-triangle me-1"></i> Hapus Intent</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0 small">Yakin ingin menghapus <strong id="deleteName"></strong>?</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete()"><i class="bi bi-trash3"></i> Hapus</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="container mt-4 mb-3 text-center text-muted small">
+    <a href="/" class="text-decoration-none">&larr; Kembali ke Tanya</a>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let deleteTarget = null;
+    let intentsData = [];
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
+
+    document.addEventListener('DOMContentLoaded', loadIntents);
+
+    async function loadIntents() {
+      document.getElementById('loadingSpinner').classList.remove('d-none');
+      document.getElementById('intentTable').classList.add('d-none');
+      document.getElementById('emptyState').classList.add('d-none');
+      document.getElementById('paginationNav').classList.add('d-none');
+      try {
+        const res = await fetch('/api/intents');
+        intentsData = await res.json();
+        currentPage = 1;
+        renderIntents();
+      } catch (e) {
+        alert('Gagal memuat intent: ' + e.message);
+      }
+      document.getElementById('loadingSpinner').classList.add('d-none');
+    }
+
+    function renderIntents() {
+      const tbody = document.getElementById('intentBody');
+      tbody.innerHTML = '';
+      if (intentsData.length === 0) {
+        document.getElementById('intentTable').classList.add('d-none');
+        document.getElementById('emptyState').classList.remove('d-none');
+        document.getElementById('paginationNav').classList.add('d-none');
+        return;
+      }
+      document.getElementById('intentTable').classList.remove('d-none');
+      document.getElementById('emptyState').classList.add('d-none');
+
+      const totalPages = Math.ceil(intentsData.length / PAGE_SIZE);
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const page = intentsData.slice(start, start + PAGE_SIZE);
+
+      page.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><code>${item.id}</code></td>
+          <td><small>${item.description}</small></td>
+          <td class="text-center">${item.active ? '<span class="text-success"><i class="bi bi-check-circle-fill"></i></span>' : '<span class="text-muted"><i class="bi bi-x-circle"></i></span>'}</td>
+          <td>
+            <button class="btn btn-outline-primary btn-sm me-1" onclick="showEditModal('${item.id}')" title="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-danger btn-sm" onclick="showDeleteModal('${item.id}')" title="Hapus"><i class="bi bi-trash3"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      const nav = document.getElementById('paginationNav');
+      const ul = nav.querySelector('ul');
+      ul.innerHTML = '';
+      if (totalPages <= 1) { nav.classList.add('d-none'); return; }
+      nav.classList.remove('d-none');
+
+      const prev = document.createElement('li');
+      prev.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+      prev.innerHTML = `<button class="page-link" onclick="goPage(${currentPage - 1})">&laquo;</button>`;
+      ul.appendChild(prev);
+
+      for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement('li');
+        li.className = 'page-item' + (i === currentPage ? ' active' : '');
+        li.innerHTML = `<button class="page-link" onclick="goPage(${i})">${i}</button>`;
+        ul.appendChild(li);
+      }
+
+      const next = document.createElement('li');
+      next.className = 'page-item' + (currentPage === totalPages ? ' disabled' : '');
+      next.innerHTML = `<button class="page-link" onclick="goPage(${currentPage + 1})">&raquo;</button>`;
+      ul.appendChild(next);
+    }
+
+    function goPage(page) {
+      const totalPages = Math.ceil(intentsData.length / PAGE_SIZE);
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      renderIntents();
+    }
+
+    function showAddModal() {
+      document.getElementById('modalTitle').textContent = 'Intent Baru';
+      document.getElementById('editId').value = '';
+      document.getElementById('intentId').value = '';
+      document.getElementById('intentId').readOnly = false;
+      document.getElementById('intentDesc').value = '';
+      document.getElementById('intentSql').value = '';
+      document.getElementById('intentParams').value = '';
+      document.getElementById('intentExamples').value = '';
+      document.getElementById('intentActive').checked = true;
+      new bootstrap.Modal(document.getElementById('intentModal')).show();
+    }
+
+    async function showEditModal(id) {
+      document.getElementById('modalTitle').textContent = 'Edit Intent';
+      document.getElementById('editId').value = id;
+      document.getElementById('intentId').value = id;
+      document.getElementById('intentId').readOnly = true;
+      try {
+        const res = await fetch('/api/intents/' + id);
+        const item = await res.json();
+        document.getElementById('intentDesc').value = item.description || '';
+        document.getElementById('intentSql').value = item.sql_template || '';
+        const paramsObj = item.params || {};
+        document.getElementById('intentParams').value = Object.entries(paramsObj).map(([k, v]) => k + ':' + v).join('\n');
+        document.getElementById('intentExamples').value = (item.examples || []).join('\n');
+        document.getElementById('intentActive').checked = item.active !== false;
+        new bootstrap.Modal(document.getElementById('intentModal')).show();
+      } catch (e) {
+        alert('Gagal memuat intent: ' + e.message);
+      }
+    }
+
+    async function saveIntent() {
+      const editId = document.getElementById('editId').value;
+      const id = document.getElementById('intentId').value.trim();
+      const desc = document.getElementById('intentDesc').value.trim();
+      const sql = document.getElementById('intentSql').value.trim();
+      const paramsRaw = document.getElementById('intentParams').value.trim();
+      const examplesRaw = document.getElementById('intentExamples').value.trim();
+      const active = document.getElementById('intentActive').checked;
+
+      if (!id || !desc || !sql) {
+        alert('ID, Deskripsi, dan SQL Template harus diisi.');
+        return;
+      }
+
+      const params = {};
+      if (paramsRaw) {
+        paramsRaw.split('\n').forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx > 0) {
+            params[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+          }
+        });
+      }
+      const examples = examplesRaw ? examplesRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+      const body = { id, description: desc, sql_template: sql, params, examples, active };
+      const url = editId ? '/api/intents/' + editId : '/api/intents';
+      const method = editId ? 'PUT' : 'POST';
+
+      try {
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + (err.detail || res.statusText));
+          return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('intentModal')).hide();
+        loadIntents();
+      } catch (e) {
+        alert('Gagal menyimpan: ' + e.message);
+      }
+    }
+
+    function showDeleteModal(id) {
+      deleteTarget = id;
+      document.getElementById('deleteName').textContent = id;
+      new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    async function confirmDelete() {
+      if (!deleteTarget) return;
+      try {
+        const res = await fetch('/api/intents/' + deleteTarget, { method: 'DELETE' });
+        if (!res.ok) {
+          alert('Gagal menghapus');
+          return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        deleteTarget = null;
+        loadIntents();
+      } catch (e) {
+        alert('Gagal menghapus: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

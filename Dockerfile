@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV UV_PYTHON_PREFERENCE=only-system \
+    PATH="/app/.venv/bin:${PATH}"
+
+RUN pip install uv --no-cache-dir
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --no-cache --python-preference only-system
+
+COPY . .
+
+EXPOSE 8000
