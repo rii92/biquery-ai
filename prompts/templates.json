@@ -1,0 +1,297 @@
+{
+  "insight_template_guide": {
+    "output_contract": {
+      "type": "object",
+      "required": [
+        "insight",
+        "bullets",
+        "caveats"
+      ],
+      "properties": {
+        "insight": {
+          "type": "string",
+          "max_sentences": 2
+        },
+        "bullets": {
+          "type": "array",
+          "max_items": 6,
+          "item_type": "string"
+        },
+        "caveats": {
+          "type": "array",
+          "max_items": 4,
+          "item_type": "string"
+        }
+      }
+    },
+    "global_rules": [
+      "Gunakan hanya fakta yang ada di INPUT_FACTS_JSON.",
+      "Jangan menebak penyebab / alasan / konteks di luar data.",
+      "Jika nilai tidak tersedia, hilangkan bagian itu (jangan mengarang).",
+      "Utamakan angka + kualifier singkat dibanding narasi panjang.",
+      "Jika memungkinkan, tambahkan 1 bullet yang diawali 'Saran:' berisi tindak lanjut yang relevan."
+    ],
+    "language": "id",
+    "intent_rules": {
+      "class_attendance": {
+        "insight_patterns": [
+          "Total {total} catatan pada {period_count} periode.",
+          "{latest_value} catatan pada periode terakhir ({latest_period})."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value}.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: pilih Tahun Ajaran + Semester untuk angka tunggal.",
+          "Saran: fokuskan ke kelas tertentu untuk tindakan wali kelas."
+        ],
+        "facts_to_use": [
+          "series",
+          "filters",
+          "row_count"
+        ],
+        "notes": [
+          "series memakai academic_year+semester dan value numerik (umumnya 'count').",
+          "Jika hanya satu periode, utamakan phrasing single-periode."
+        ]
+      },
+      "attendance_by_status": {
+        "insight_patterns": [
+          "Total {total} catatan pada {period_count} periode.",
+          "{latest_value} catatan pada periode terakhir ({latest_period})."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value}.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: pilih Tahun Ajaran + Semester untuk angka tunggal."
+        ],
+        "facts_to_use": [
+          "series",
+          "filters",
+          "row_count"
+        ]
+      },
+      "count_students": {
+        "insight_patterns": [
+          "Total {total}."
+        ],
+        "bullet_patterns": [
+          "Baris hasil: {row_count}."
+        ],
+        "facts_to_use": [
+          "numeric",
+          "row_count",
+          "filters"
+        ]
+      },
+      "count_teachers": {
+        "insight_patterns": [
+          "Total {total}."
+        ],
+        "bullet_patterns": [
+          "Baris hasil: {row_count}."
+        ],
+        "facts_to_use": [
+          "numeric",
+          "row_count",
+          "filters"
+        ]
+      },
+      "count_students_gender": {
+        "insight_patterns": [
+          "Total {total}."
+        ],
+        "bullet_patterns": [
+          "Baris hasil: {row_count}."
+        ],
+        "facts_to_use": [
+          "numeric",
+          "row_count",
+          "filters"
+        ]
+      },
+      "count_teachers_gender": {
+        "insight_patterns": [
+          "Total {total}."
+        ],
+        "bullet_patterns": [
+          "Baris hasil: {row_count}."
+        ],
+        "facts_to_use": [
+          "numeric",
+          "row_count",
+          "filters"
+        ]
+      },
+      "top_students": {
+        "insight_patterns": [
+          "Peringkat 1: {top_entity} = {top_value}."
+        ],
+        "bullet_patterns": [
+          "Peringkat {rank}: {entity} = {value}."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "row_count",
+          "filters"
+        ]
+      },
+      "top_students_overall": {
+        "insight_patterns": [
+          "Peringkat 1: {top_entity} = {top_value}."
+        ],
+        "bullet_patterns": [
+          "Peringkat {rank}: {entity} = {value}."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "row_count",
+          "filters"
+        ]
+      },
+      "average_score_per_class_by_subject": {
+        "insight_patterns": [
+          "Nilai tertinggi: {top_entity} = {top_value}.",
+          "Rata-rata keseluruhan: {avg_value}."
+        ],
+        "bullet_patterns": [
+          "Top: {top_entity} = {top_value}.",
+          "Bottom: {bottom_entity} = {bottom_value}."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "numeric",
+          "filters",
+          "row_count"
+        ]
+      },
+      "lowest_average_per_class": {
+        "insight_patterns": [
+          "Nilai tertinggi: {top_entity} = {top_value}.",
+          "Rata-rata keseluruhan: {avg_value}."
+        ],
+        "bullet_patterns": [
+          "Top: {top_entity} = {top_value}.",
+          "Bottom: {bottom_entity} = {bottom_value}."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "numeric",
+          "filters",
+          "row_count"
+        ]
+      },
+      "class_average_score": {
+        "insight_patterns": [
+          "Nilai tertinggi: {top_entity} = {top_value}.",
+          "Rata-rata keseluruhan: {avg_value}."
+        ],
+        "bullet_patterns": [
+          "Top: {top_entity} = {top_value}.",
+          "Bottom: {bottom_entity} = {bottom_value}."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "numeric",
+          "filters",
+          "row_count"
+        ]
+      },
+      "list_alpha_students_with_count": {
+        "insight_patterns": [
+          "{row_count} siswa tercatat alpha pada hasil ini.",
+          "Siswa dengan alpha terbanyak: {top_entity} = {top_value}."
+        ],
+        "bullet_patterns": [
+          "Terbanyak: {top_entity} = {top_value}.",
+          "Saran: cek per kelas dan tindak lanjuti siswa dengan alpha terbanyak."
+        ],
+        "facts_to_use": [
+          "ranking",
+          "filters",
+          "row_count"
+        ]
+      },
+      "bp_total_masuk": {
+        "insight_patterns": [
+          "Total {total} permohonan izin masuk tercatat pada {period_count} periode."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value} permohonan.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: gunakan filter jenis izin (PB/PL/PBUMKU) untuk data lebih spesifik."
+        ],
+        "facts_to_use": ["series", "filters", "row_count", "numeric"]
+      },
+      "bp_izin_terbit_per_bulan": {
+        "insight_patterns": [
+          "Total {total} izin terbit pada {period_count} periode."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value} izin terbit.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: bandingkan dengan total masuk untuk melihat rasio penerbitan."
+        ],
+        "facts_to_use": ["series", "filters", "row_count", "numeric"]
+      },
+      "bp_total_backlog_per_bulan": {
+        "insight_patterns": [
+          "Total {total} backlog pada {period_count} periode."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value} backlog.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: prioritaskan backlog tertinggi untuk tindak lanjut."
+        ],
+        "facts_to_use": ["series", "filters", "row_count", "numeric"]
+      },
+      "bp_dalam_proses": {
+        "insight_patterns": [
+          "Total {total} permohonan masih dalam proses pada {period_count} hari."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value} permohonan.",
+          "Rentang per hari: {min_value}–{max_value}.",
+          "Saran: filter per jenis izin untuk detail lebih lanjut."
+        ],
+        "facts_to_use": ["series", "filters", "row_count", "numeric"]
+      },
+      "bp_sebaran_jenis_izin": {
+        "insight_patterns": [
+          "{row_count} baris sebaran izin berdasarkan jenis dan status."
+        ],
+        "bullet_patterns": [
+          "Jenis izin teratas: {top_entity} = {top_value}.",
+          "Baris hasil: {row_count}."
+        ],
+        "facts_to_use": ["ranking", "row_count", "filters", "numeric"]
+      },
+      "bp_komposisi_status": {
+        "insight_patterns": [
+          "{row_count} baris komposisi status perizinan pada {period_count} periode."
+        ],
+        "bullet_patterns": [
+          "Terakhir ({latest_period}): {latest_value}.",
+          "Rentang per periode: {min_value}–{max_value}.",
+          "Saran: filter kelompok status (Terbit/Ditolak/Dalam Proses) untuk fokus."
+        ],
+        "facts_to_use": ["series", "filters", "row_count", "numeric"]
+      },
+      "_default": {
+        "insight_patterns": [
+          "{row_count} baris hasil."
+        ],
+        "bullet_patterns": [
+          "Baris hasil: {row_count}.",
+          "Saran: tambah filter (tanggal/jenis izin) agar hasil lebih spesifik."
+        ],
+        "facts_to_use": [
+          "row_count",
+          "filters",
+          "ranking",
+          "numeric",
+          "series"
+        ]
+      }
+    }
+  }
+}
