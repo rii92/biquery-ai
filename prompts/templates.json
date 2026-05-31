@@ -276,6 +276,76 @@
         ],
         "facts_to_use": ["series", "filters", "row_count", "numeric"]
       },
+      "DMT1_total_izin": {
+        "insight_patterns": [
+          "Total {total} permohonan izin tercatat."
+        ],
+        "bullet_patterns": [
+          "Seluruh jenis izin: {total} permohonan.",
+          "Saran: gunakan filter tahun/bulan untuk tren periodik."
+        ],
+        "facts_to_use": ["numeric", "row_count", "filters"]
+      },
+      "DMT1_total_terbit": {
+        "insight_patterns": [
+          "Total {total} izin telah terbit."
+        ],
+        "bullet_patterns": [
+          "Izin terbit: {total}.",
+          "Saran: bandingkan dengan total tolak untuk rasio keberhasilan."
+        ],
+        "facts_to_use": ["numeric", "row_count", "filters"]
+      },
+      "DMT1_total_tolak": {
+        "insight_patterns": [
+          "Total {total} izin ditolak."
+        ],
+        "bullet_patterns": [
+          "Izin ditolak: {total}.",
+          "Saran: evaluasi penyebab penolakan untuk perbaikan proses."
+        ],
+        "facts_to_use": ["numeric", "row_count", "filters"]
+      },
+      "DMT1_total_proses_pelaku_usaha": {
+        "insight_patterns": [
+          "Total {total} permohonan masih dalam proses pelaku usaha."
+        ],
+        "bullet_patterns": [
+          "Proses pelaku usaha: {total}.",
+          "Saran: dorong pemohon untuk melengkapi dokumen."
+        ],
+        "facts_to_use": ["numeric", "row_count", "filters"]
+      },
+      "DMT1_total_dalam_proses": {
+        "insight_patterns": [
+          "Total {total} permohonan dalam proses internal."
+        ],
+        "bullet_patterns": [
+          "Dalam proses: {total}.",
+          "Saran: prioritaskan yang melampaui SLA."
+        ],
+        "facts_to_use": ["numeric", "row_count", "filters"]
+      },
+      "DMT1_row_izin_by_status": {
+        "insight_patterns": [
+          "Sebaran {row_count} jenis izin berdasarkan kelompok status."
+        ],
+        "bullet_patterns": [
+          "Teratas: {top_entity} = {top_value}.",
+          "Saran: filter per jenis izin untuk detail."
+        ],
+        "facts_to_use": ["ranking", "row_count", "filters", "numeric"]
+      },
+      "DMT1_komposisi_keseluruhan_izin": {
+        "insight_patterns": [
+          "Komposisi {row_count} jenis izin berdasarkan kelompok status."
+        ],
+        "bullet_patterns": [
+          "Teratas: {top_entity} = {top_value}.",
+          "Saran: identifikasi bottleneck pada kelompok 'Dalam Proses'."
+        ],
+        "facts_to_use": ["ranking", "row_count", "filters", "numeric"]
+      },
       "_default": {
         "insight_patterns": [
           "{row_count} baris hasil."

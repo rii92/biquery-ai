@@ -25,6 +25,8 @@ class QueryRequest(BaseModel):
     tgl_status_terakhir: str = ""
     perizinan: str = ""
     kategori_status: str = ""
+    tahun: str = ""
+    bulan: str = ""
 
 
 class QueryResponse(BaseModel):
@@ -113,7 +115,7 @@ async def _sse_process(req_data: dict):
             return
 
     # ── Step 6: Terapkan filter ──
-    for k in ("tgl_status_terakhir", "perizinan", "kategori_status"):
+    for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan"):
         v = req_data.get(k, "")
         if v:
             payload[k] = v
@@ -226,7 +228,7 @@ async def query(req: QueryRequest):
         return QueryResponse(reply="Maaf, tidak dapat memahami pertanyaan.", elapsed=round(time.time() - t0, 2))
 
     # Step 6: Apply filters
-    for k in ("tgl_status_terakhir", "perizinan", "kategori_status"):
+    for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan"):
         v = getattr(req, k, "")
         if v:
             payload[k] = v
@@ -279,6 +281,8 @@ async def query_stream(
     tgl_status_terakhir: str = Query("", description="Filter tanggal (BP Batam)"),
     perizinan: str = Query("", description="Filter jenis izin (BP Batam)"),
     kategori_status: str = Query("", description="Filter kategori status (BP Batam)"),
+    tahun: str = Query("", description="Filter tahun (contoh: 2025)"),
+    bulan: str = Query("", description="Filter bulan (contoh: 01)"),
 ):
     req_data = {
         "message": message,
@@ -288,5 +292,7 @@ async def query_stream(
         "tgl_status_terakhir": tgl_status_terakhir,
         "perizinan": perizinan,
         "kategori_status": kategori_status,
+        "tahun": tahun,
+        "bulan": bulan,
     }
     return StreamingResponse(_sse_process(req_data), media_type="text/event-stream")

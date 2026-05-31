@@ -28,12 +28,36 @@ def classify_by_keyword(question: str) -> Optional[Dict[str, Any]]:
     if re.search(r"\b(siapa\s*nama|namamu|nama\s*kamu)\b", q):
         return {"intent": "_greeting", "_reply": "Namaku <b>EduQuery AI</b>! Aku siap membantu menjawab pertanyaan seputar data perizinan BP Batam."}
 
-    # BP Batam intents
+    # ── DMT1 intents (chart/dashboard — total tunggal, tanpa GROUP BY) ──
+    has_dmt = re.search(r"ringkasan|dashboard|chart|dmt", q)
+    has_total = re.search(r"total|jumlah", q)
+    has_stat = re.search(r"sebaran|komposisi|rekap", q)
     has_izin = re.search(r"izin", q)
     has_bp = re.search(r"\bbp\b|bp[\s_]?batam|data.?warehouse", q)
     has_perizinan = re.search(r"perizinan|permohonan|backlog", q)
     has_status = re.search(r"status\s*perizinan", q)
 
+    dmt_trigger = has_dmt or (has_total and (has_izin or has_perizinan or has_bp)) or has_stat
+
+    if dmt_trigger:
+        if re.search(r"masuk|masuk.*izin", q):
+            pass  # fall through ke BP — "total masuk" sesuai bp_total_masuk
+        elif re.search(r"terbit", q):
+            return {"intent": "DMT1_total_terbit"}
+        elif re.search(r"tolak|ditolak|reject", q):
+            return {"intent": "DMT1_total_tolak"}
+        elif re.search(r"pelaku.?usaha|draft|menunggu.*pemohon|waiting.*user", q):
+            return {"intent": "DMT1_total_proses_pelaku_usaha"}
+        elif re.search(r"dalam.*proses|proses.*internal|sedang.*diproses", q):
+            return {"intent": "DMT1_total_dalam_proses"}
+        elif re.search(r"komposisi|rekap|kelompok.?status", q):
+            return {"intent": "DMT1_komposisi_keseluruhan_izin"}
+        elif re.search(r"sebaran|jenis.*izin|per.*jenis|by.*status", q):
+            return {"intent": "DMT1_row_izin_by_status"}
+        else:
+            return {"intent": "DMT1_total_izin"}
+
+    # ── BP Batam intents (time-series / eksekutif) ──
     if has_bp or has_perizinan or has_status or has_izin:
         if re.search(r"(?:total|jumlah).*(?:masuk|masuk.*izin)", q):
             return {"intent": "bp_total_masuk"}

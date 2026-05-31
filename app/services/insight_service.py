@@ -91,6 +91,19 @@ class InsightService:
                         facts["bottom_entity"] = rankings[-1]["entity"]
                         facts["bottom_value"] = rankings[-1]["value"]
 
+        # optional second group-by column (e.g. KELOMPOK_STATUS)
+        if data and len(label_candidates) >= 2:
+            second_label = label_candidates[1]
+            grouped = {}
+            for r in data:
+                key = str(r.get(label_col, ""))
+                sub = str(r.get(second_label, ""))
+                val = r.get(num_col, 0)
+                if key not in grouped:
+                    grouped[key] = {}
+                grouped[key][sub] = val
+            facts["grouped"] = grouped
+
         facts["period_count"] = len(data)
         return facts
 

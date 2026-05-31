@@ -90,5 +90,120 @@
     ],
     "active": true,
     "source": "bp"
+  },
+  {
+    "id": "DMT1_total_izin",
+    "description": "DMT1: Total seluruh permohonan izin (chart Ringkasan)",
+    "sql_template": "SELECT\n    COUNT(*) AS TOTAL_PERIZINAN\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE 1 = 1\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n  AND {tahun}\n  AND {bulan}\n  AND {perizinan}\n  AND {kategori_status}",
+    "params": {
+      "tahun": "Filter tahun (contoh: TO_CHAR(TGL_STATUS_TERAKHIR, 'YYYY') = '2025')",
+      "bulan": "Filter bulan (contoh: TO_CHAR(TGL_STATUS_TERAKHIR, 'MM') = '01')",
+      "perizinan": "Filter jenis izin",
+      "kategori_status": "Filter kategori status"
+    },
+    "examples": [
+      "Total izin BP Batam",
+      "Jumlah seluruh permohonan izin"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_total_terbit",
+    "description": "DMT1: Total izin terbit (chart Ringkasan)",
+    "sql_template": "SELECT\n    COUNT(*) AS TOTAL_TERBIT\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE KATEGORI_STATUS = 'Terbit'\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB', '31001124', '44441124')\n  AND {tahun}\n  AND {bulan}\n  AND {perizinan}",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Total izin terbit BP Batam",
+      "Jumlah izin yang sudah terbit"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_total_tolak",
+    "description": "DMT1: Total izin ditolak (chart Ringkasan)",
+    "sql_template": "SELECT\n    COUNT(*) AS TOTAL_TOLAK\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE (\n    UPPER(KATEGORI_STATUS) LIKE '%TOLAK%' \n    OR UPPER(KATEGORI_STATUS) LIKE '%DITOLAK%' \n    OR UPPER(KATEGORI_STATUS) LIKE '%REJECTED%'\n)\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n  AND {tahun}\n  AND {bulan}\n  AND {perizinan}",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Total izin ditolak BP Batam",
+      "Jumlah izin yang ditolak"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_total_proses_pelaku_usaha",
+    "description": "DMT1: Total izin dalam proses pelaku usaha (chart Ringkasan)",
+    "sql_template": "SELECT\n    COUNT(*) AS TOTAL_PROSES_PELAKU_USAHA\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE 1 = 1\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n  AND (\n      UPPER(KATEGORI_STATUS) LIKE '%DRAFT%' \n      OR UPPER(KATEGORI_STATUS) LIKE '%PELAKU USAHA%' \n      OR UPPER(KATEGORI_STATUS) LIKE '%WAITING FOR USER%'\n  )\n  AND {tahun}\n  AND {bulan}\n  AND {perizinan}",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Total izin proses pelaku usaha",
+      "Jumlah izin yang masih draft atau menunggu pemohon"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_total_dalam_proses",
+    "description": "DMT1: Total izin dalam proses internal (chart Ringkasan)",
+    "sql_template": "SELECT\n    COUNT(*) AS TOTAL_DALAM_PROSES\nFROM US_DWH.BI_MART_STATUS_PERIZINAN\nWHERE 1 = 1\n  AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n  AND KATEGORI_STATUS != 'Terbit'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%TOLAK%'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%DITOLAK%'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%REJECTED%'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%DRAFT%'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%PELAKU USAHA%'\n  AND UPPER(KATEGORI_STATUS) NOT LIKE '%WAITING FOR USER%'\n  AND {tahun}\n  AND {bulan}\n  AND {perizinan}",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin"
+    },
+    "examples": [
+      "Total izin dalam proses internal",
+      "Jumlah izin yang sedang diproses"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_row_izin_by_status",
+    "description": "DMT1: Sebaran izin per jenis dan kelompok status (chart Komposisi Izin)",
+    "sql_template": "SELECT\n    JENIS_IZIN,\n    KELOMPOK_STATUS,\n    COUNT(*) AS JUMLAH\nFROM (\n    SELECT\n        PERIZINAN AS JENIS_IZIN,\n        CASE\n            WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n            WHEN UPPER(KATEGORI_STATUS) LIKE '%TOLAK%' OR UPPER(KATEGORI_STATUS) LIKE '%DITOLAK%' OR UPPER(KATEGORI_STATUS) LIKE '%REJECTED%' THEN 'Tolak'\n            WHEN UPPER(KATEGORI_STATUS) LIKE '%DRAFT%' OR UPPER(KATEGORI_STATUS) LIKE '%PELAKU USAHA%' OR UPPER(KATEGORI_STATUS) LIKE '%WAITING FOR USER%' THEN 'Proses Pelaku Usaha'\n            ELSE 'Dalam Proses'\n        END AS KELOMPOK_STATUS\n    FROM US_DWH.BI_MART_STATUS_PERIZINAN\n    WHERE 1 = 1\n      AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n      AND {tahun}\n      AND {bulan}\n      AND {perizinan}\n      AND {kategori_status}\n) sub\nGROUP BY\n    JENIS_IZIN,\n    KELOMPOK_STATUS\nORDER BY JUMLAH DESC",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin",
+      "kategori_status": "Filter kategori status"
+    },
+    "examples": [
+      "Sebaran izin per jenis dan status",
+      "Komposisi izin BP Batam"
+    ],
+    "active": true,
+    "source": "bp"
+  },
+  {
+    "id": "DMT1_komposisi_keseluruhan_izin",
+    "description": "DMT1: Komposisi keseluruhan izin per jenis dan kelompok status (chart Komposisi Keseluruhan)",
+    "sql_template": "SELECT\n    JENIS_IZIN,\n    KELOMPOK_STATUS,\n    COUNT(*) AS JUMLAH\nFROM (\n    SELECT\n        PERIZINAN AS JENIS_IZIN,\n        CASE\n            WHEN KATEGORI_STATUS = 'Terbit' THEN 'Terbit'\n            WHEN UPPER(KATEGORI_STATUS) LIKE '%TOLAK%' OR UPPER(KATEGORI_STATUS) LIKE '%DITOLAK%' OR UPPER(KATEGORI_STATUS) LIKE '%REJECTED%' THEN 'Tolak'\n            WHEN UPPER(KATEGORI_STATUS) LIKE '%DRAFT%' OR UPPER(KATEGORI_STATUS) LIKE '%PELAKU USAHA%' OR UPPER(KATEGORI_STATUS) LIKE '%WAITING FOR USER%' THEN 'Proses Pelaku Usaha'\n            ELSE 'Dalam Proses'\n        END AS KELOMPOK_STATUS\n    FROM US_DWH.BI_MART_STATUS_PERIZINAN\n    WHERE 1 = 1\n      AND PERIZINAN IN ('PL', 'PBUMKU', 'PKKPRL', 'PPKH', 'PB')\n      AND {tahun}\n      AND {bulan}\n      AND {perizinan}\n      AND {kategori_status}\n) sub\nGROUP BY\n    JENIS_IZIN,\n    KELOMPOK_STATUS\nORDER BY JENIS_IZIN, JUMLAH DESC",
+    "params": {
+      "tahun": "Filter tahun",
+      "bulan": "Filter bulan",
+      "perizinan": "Filter jenis izin",
+      "kategori_status": "Filter kategori status"
+    },
+    "examples": [
+      "Komposisi keseluruhan izin BP Batam",
+      "Rekap semua izin per jenis"
+    ],
+    "active": true,
+    "source": "bp"
   }
 ]
