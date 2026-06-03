@@ -105,6 +105,8 @@ Konfigurasi via `.env` (lihat `.env.example` untuk template):
 | `BP_DB_PASSWORD` | ✅ | — | Password Oracle BP Batam |
 | `BP_DB_HOST` | ✅ | `bpdb-scan.bpbatam.go.id:1521` | Host:port Oracle |
 | `BP_DB_SERVICE_NAME` | ✅ | `begs` | Service name Oracle |
+| `DASHBOARD_USERNAME` | | `admin` | Username untuk HTTP Basic Auth dashboard |
+| `DASHBOARD_PASSWORD` | | *(kosong)* | Password dashboard. Jika kosong, auth dinonaktifkan |
 
 ## Project Structure
 
@@ -159,6 +161,7 @@ Container akan berjalan di `http://localhost:8000` (atau sesuai `APP_PORT` di `.
 - **Environment**: File `.env` dibaca otomatis oleh Docker Compose — salin `.env.example` ke `.env` dan sesuaikan kredensial Oracle.
 - **Port**: Gunakan variabel `APP_PORT` di `.env` untuk mengubah port host (default: `8000`).
 - **Restart**: Container akan restart otomatis jika crash atau Docker daemon restart (`restart: unless-stopped`).
+- **Auth Dashboard**: Set `DASHBOARD_USERNAME` dan `DASHBOARD_PASSWORD` di `.env` untuk mengamankan akses dashboard dengan HTTP Basic Auth. Jika `DASHBOARD_PASSWORD` dikosongkan, auth dinonaktifkan.
 
 ### Volume Mount (Development)
 
