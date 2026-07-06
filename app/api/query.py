@@ -151,9 +151,9 @@ async def _sse_process(req_data: dict):
     yield _event({"step": "Menjalankan query ke database...", "progress": 70})
     try:
         result = bp_service.execute(sql)
-    except DatabaseConnectionError as e:
+    except DatabaseConnectionError:
         yield _event({
-            "done": True, "reply": f"[ERROR] {e}", "sql": sql, "result": [],
+            "done": True, "reply": "Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", "sql": sql, "result": [],
             "elapsed": round(time.time() - t0, 2), "progress": 100,
         })
         return
@@ -253,8 +253,8 @@ async def query(req: QueryRequest):
     # Step 9: Execute SQL
     try:
         result = bp_service.execute(sql)
-    except DatabaseConnectionError as e:
-        return QueryResponse(reply=f"[ERROR] {e}", sql=sql, result=[], elapsed=round(time.time() - t0, 2))
+    except DatabaseConnectionError:
+        return QueryResponse(reply="Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", sql=sql, result=[], elapsed=round(time.time() - t0, 2))
 
     if not result:
         return QueryResponse(reply="Data tidak ditemukan.", sql=sql, result=[], elapsed=round(time.time() - t0, 2))
