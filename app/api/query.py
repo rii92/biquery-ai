@@ -177,17 +177,19 @@ async def _sse_process(req_data: dict):
     insight_service = InsightService()
     det_insight = insight_service.deterministic(payload, result)
 
-    # ── Step 11: Insight Narration (LLM opsional) ──
+    # ── Step 11: Insight Narration (LLM opsional / otomatis di Natural mode) ──
     llm_insight = ""
-    if insight_provider == "llm":
-        yield _event({"step": f"Menganalisis insight ({insight_llm_provider})...", "progress": 85})
-        llm_client = LLMClient(provider=insight_llm_provider)
+    reply_provider_val = req_data.get("reply_provider", "deterministic")
+    should_insight = insight_provider == "llm" or reply_provider_val == "llm"
+    insight_prov = insight_llm_provider if insight_provider == "llm" else req_data.get("reply_llm_provider", "llamacpp")
+    if should_insight:
+        yield _event({"step": f"Menganalisis insight ({insight_prov})...", "progress": 85})
+        llm_client = LLMClient(provider=insight_prov)
         llm_insight = await insight_service.llm_narration(llm_client, intent, message, result, det_insight)
 
     # ── Step 12: Reply Formatter ──
-    reply_provider = req_data.get("reply_provider", "deterministic")
     reply_llm_provider = req_data.get("reply_llm_provider", "llamacpp")
-    if reply_provider == "llm":
+    if reply_provider_val == "llm":
         yield _event({"step": f"Menyusun jawaban natural ({reply_llm_provider})...", "progress": 90})
         reply = await generate_llm_reply(message, intent, result, payload, llm_provider=reply_llm_provider, timeout=120)
         if not reply:

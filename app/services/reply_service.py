@@ -1,4 +1,4 @@
-"""LLM-based reply generator — menghasilkan jawaban natural dari data query."""
+"""LLM-based reply generator — jawaban natural + insight dari data query."""
 
 import json
 from typing import Optional
@@ -33,7 +33,7 @@ async def generate_llm_reply(
 
     filters = {k: v for k, v in payload.items() if v and k not in ("intent", "_reply")}
 
-    prompt = f"""Kamu adalah asisten data warehouse BP Batam. Jawab dengan bahasa Indonesia yang natural, ringkas, dan informatif.
+    prompt = f"""Kamu adalah asisten analis data warehouse BP Batam. Berikan jawaban yang informatif, analitis, dan mengandung insight.
 
 LAPORAN: {label}
 PERTANYAAN: {question}
@@ -46,18 +46,21 @@ FILTER AKTIF:
 {json.dumps(filters, indent=2, ensure_ascii=False) if filters else "Tidak ada filter"}
 
 INSTRUKSI:
-1. Jawab langsung inti dari laporan tersebut dalam 2-3 kalimat pertama.
-2. Sebutkan angka-angka penting dari data.
-3. Jika ada filter yang aktif, sebutkan.
-4. Jika hasil hanya 1 baris, deskripsikan nilai-nilai pentingnya.
-5. Jika data kosong, bilang bahwa data tidak ditemukan (jangan mengarang).
-6. Jangan gunakan markdown atau formatting berlebihan. Gunakan teks biasa.
-7. Akhiri dengan saran singkat jika relevan.
+1. INTI — Jawab inti laporan dalam 1-2 kalimat pertama.
+2. ANGKA — Sebutkan angka-angka penting berikut analisis proporsinya (misal: 60% terbit, 15% masih proses).
+3. INSIGHT — Analisis pola dari data:
+   - Jika ada yang menonjol (terlalu tinggi/rendah), soroti.
+   - Jika ada data SLA/overdue, sebutkan tingkat kepatuhan dan dampaknya.
+   - Jika ada tren (inflow vs outflow), sebutkan perbandingan.
+   - Jika data staf, sebutkan siapa yang terbaik dan area perbaikan.
+4. SARAN — Akhiri dengan 1-2 saran konkret yang bisa ditindaklanjuti.
+5. GAYA BAHASA — Bahasa Indonesia natural, tidak kaku, tanpa markdown. Paragraf pendek-pendek.
+6. LARANGAN — Jangan mengarang angka. Jika data kosong, bilang data tidak tersedia.
 """
 
     try:
         llm = LLMClient(provider=llm_provider)
-        raw = await llm.generate(prompt, temperature=0.4, max_tokens=1024, timeout=timeout)
+        raw = await llm.generate(prompt, temperature=0.4, max_tokens=1536, timeout=timeout)
         return raw.strip()
     except Exception:
         return ""
