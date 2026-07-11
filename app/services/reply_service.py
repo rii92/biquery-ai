@@ -1,11 +1,14 @@
 """LLM-based reply generator — jawaban natural + insight dari data query."""
 
 import json
+import logging
 import os
 from typing import Optional
 
 from app.llm.client import LLMClient
 from app.core.json_util import serialize_dates
+
+logger = logging.getLogger("reply_service")
 
 
 _INTENT_LABELS = {
@@ -120,6 +123,9 @@ PANDUAN:
     try:
         llm = LLMClient(provider=llm_provider)
         raw = await llm.generate(prompt, temperature=0.4, max_tokens=2048, timeout=timeout)
-        return raw.strip()
-    except Exception:
+        stripped = raw.strip()
+        logger.info("generate_llm_reply OK — %d chars, provider=%s", len(stripped), llm_provider)
+        return stripped
+    except Exception as e:
+        logger.error("generate_llm_reply GAGAL — provider=%s, error=%s", llm_provider, e)
         return ""
