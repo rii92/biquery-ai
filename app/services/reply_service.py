@@ -1,6 +1,7 @@
 """LLM-based reply generator — jawaban natural + insight dari data query."""
 
 import json
+import os
 from typing import Optional
 
 from app.llm.client import LLMClient
@@ -18,6 +19,25 @@ _INTENT_LABELS = {
     "bp_rapor_staf": "Rapor evaluasi staf (skor akhir, performa, produktivitas, SLA)",
 }
 
+_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "prompts")
+
+_INSIGHT_TEMPLATES: dict = {}
+_templates_path = os.path.join(_TEMPLATES_DIR, "insight_templates.json")
+if os.path.exists(_templates_path):
+    with open(_templates_path, encoding="utf-8") as f:
+        _INSIGHT_TEMPLATES = json.load(f)
+
+
+def _extract_columns(result: list[dict]) -> str:
+    seen = set()
+    parts = []
+    for row in result[:3]:
+        for k, v in row.items():
+            if k not in seen:
+                seen.add(k)
+                parts.append(f"{k} = {v}")
+    return "\n".join(parts)
+
 
 async def generate_llm_reply(
     question: str,
@@ -32,6 +52,11 @@ async def generate_llm_reply(
     total_rows = len(result)
 
     filters = {k: v for k, v in payload.items() if v and k not in ("intent", "_reply")}
+    column_values = _extract_columns(result)
+
+    domain = _INSIGHT_TEMPLATES.get(intent, {})
+    template_insight = domain.get("insight", "")
+    template_rekomendasi = domain.get("rekomendasi", "")
 
     prompt = f"""Kamu adalah asisten analis data warehouse BP Batam. Berikan jawaban yang informatif, analitis, dan mengandung insight.
 
@@ -42,25 +67,30 @@ TOTAL BARIS DATA: {total_rows}
 DATA (JSON):
 {data_json}
 
+KOLOM DAN NILAI:
+{column_values}
+
 FILTER AKTIF:
 {json.dumps(filters, indent=2, ensure_ascii=False) if filters else "Tidak ada filter"}
+
+GAYA PENULISAN — Contoh template insight untuk laporan ini:
+{template_insight}
+
+Contoh template rekomendasi:
+{template_rekomendasi}
 
 INSTRUKSI:
 1. INTI — Jawab inti laporan dalam 1-2 kalimat pertama.
 2. ANGKA — Sebutkan angka-angka penting berikut analisis proporsinya (misal: 60% terbit, 15% masih proses).
-3. INSIGHT — Analisis pola dari data:
-   - Jika ada yang menonjol (terlalu tinggi/rendah), soroti.
-   - Jika ada data SLA/overdue, sebutkan tingkat kepatuhan dan dampaknya.
-   - Jika ada tren (inflow vs outflow), sebutkan perbandingan.
-   - Jika data staf, sebutkan siapa yang terbaik dan area perbaikan.
-4. SARAN — Akhiri dengan 1-2 saran konkret yang bisa ditindaklanjuti.
+3. INSIGHT — Analisis pola dari data menggunakan gaya bahasa seperti template di atas. Sesuaikan dengan nilai kolom yang ada di DATA.
+4. SARAN — Akhiri dengan 1-2 saran konkret menggunakan gaya seperti template rekomendasi di atas.
 5. GAYA BAHASA — Bahasa Indonesia natural, tidak kaku, tanpa markdown. Paragraf pendek-pendek.
 6. LARANGAN — Jangan mengarang angka. Jika data kosong, bilang data tidak tersedia.
 """
 
     try:
         llm = LLMClient(provider=llm_provider)
-        raw = await llm.generate(prompt, temperature=0.4, max_tokens=1536, timeout=timeout)
+        raw = await llm.generate(prompt, temperature=0.4, max_tokens=2048, timeout=timeout)
         return raw.strip()
     except Exception:
         return ""
