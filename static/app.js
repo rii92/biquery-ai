@@ -136,6 +136,7 @@ function showResult(question, data) {
     panel.classList.remove('d-none');
 
     document.getElementById('replyBox').innerHTML = marked.parse(data.reply || '(kosong)');
+    document.getElementById('whatsappReply').textContent = data.reply || '(kosong)';
 
     const elapsed = data.elapsed;
     if (elapsed != null) {
@@ -178,6 +179,14 @@ function hideResult() {
     document.getElementById('resultPanel').classList.add('d-none');
     document.getElementById('insightPanel').classList.add('d-none');
     document.getElementById('detInsightPanel').classList.add('d-none');
+    document.getElementById('waPreview').classList.add('d-none');
+}
+
+function toggleWA() {
+    const el = document.getElementById('waPreview');
+    const btn = document.getElementById('waToggle');
+    el.classList.toggle('d-none');
+    btn.classList.toggle('active');
 }
 
 function showError(msg) {
@@ -186,6 +195,7 @@ function showError(msg) {
     document.getElementById('replyBox').innerHTML = '⚠️ ' + msg;
     document.getElementById('insightPanel').classList.add('d-none');
     document.getElementById('detInsightPanel').classList.add('d-none');
+    document.getElementById('waPreview').classList.add('d-none');
     if (sqlEditor) sqlEditor.setValue('-');
     document.getElementById('resultBox').textContent = '-';
     document.getElementById('resultTable').innerHTML = '';

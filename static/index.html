@@ -69,53 +69,57 @@
                             <!-- Provider Selection Card -->
                             <div class="card card-body bg-light mb-3 py-2 px-3">
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-3 col-6">
+                                    <div class="col-xl-3 col-md-6 col-12">
                                         <label class="small fw-semibold text-muted d-block">LLM Fallback</label>
-                                        <div class="btn-group btn-group-sm w-100">
-                                            <input type="radio" class="btn-check" name="intentProvider" id="intentProviderLocal" value="local" checked>
-                                            <label class="btn btn-outline-primary btn-sm" for="intentProviderLocal">Ollama</label>
-                                            <input type="radio" class="btn-check" name="intentProvider" id="intentProviderCloud" value="cloud">
-                                            <label class="btn btn-outline-primary btn-sm" for="intentProviderCloud">Cloud</label>
-                                            <input type="radio" class="btn-check" name="intentProvider" id="intentProviderLlamaCpp" value="llamacpp">
-                                            <label class="btn btn-outline-primary btn-sm" for="intentProviderLlamaCpp">Ornith</label>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <div class="btn-group btn-group-sm flex-fill">
+                                                <input type="radio" class="btn-check" name="intentProvider" id="intentProviderLocal" value="local" checked>
+                                                <label class="btn btn-outline-primary btn-sm" for="intentProviderLocal">Ollama</label>
+                                                <input type="radio" class="btn-check" name="intentProvider" id="intentProviderCloud" value="cloud">
+                                                <label class="btn btn-outline-primary btn-sm" for="intentProviderCloud">Cloud</label>
+                                                <input type="radio" class="btn-check" name="intentProvider" id="intentProviderLlamaCpp" value="llamacpp">
+                                                <label class="btn btn-outline-primary btn-sm" for="intentProviderLlamaCpp">Ornith</label>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3 col-6">
+                                    <div class="col-xl-3 col-md-6 col-12">
                                         <label class="small fw-semibold text-muted d-block">Insight Provider</label>
-                                        <div class="btn-group btn-group-sm w-100">
-                                            <input type="radio" class="btn-check" name="insightProvider" id="insightDet" value="deterministic" checked>
-                                            <label class="btn btn-outline-success btn-sm" for="insightDet">Det</label>
-                                            <input type="radio" class="btn-check" name="insightProvider" id="insightLocal" value="llm">
-                                            <label class="btn btn-outline-success btn-sm insight-llm" for="insightLocal">Ollama</label>
-                                            <input type="radio" class="btn-check" name="insightProvider" id="insightCloud" value="llm_cloud">
-                                            <label class="btn btn-outline-success btn-sm insight-llm" for="insightCloud">Cloud</label>
-                                            <input type="radio" class="btn-check" name="insightProvider" id="insightLlamaCpp" value="llm_llamacpp">
-                                            <label class="btn btn-outline-success btn-sm insight-llm" for="insightLlamaCpp">Ornith</label>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <div class="btn-group btn-group-sm flex-fill">
+                                                <input type="radio" class="btn-check" name="insightProvider" id="insightDet" value="deterministic" checked>
+                                                <label class="btn btn-outline-success btn-sm" for="insightDet">Det</label>
+                                                <input type="radio" class="btn-check" name="insightProvider" id="insightLocal" value="llm">
+                                                <label class="btn btn-outline-success btn-sm insight-llm" for="insightLocal">Ollama</label>
+                                                <input type="radio" class="btn-check" name="insightProvider" id="insightCloud" value="llm_cloud">
+                                                <label class="btn btn-outline-success btn-sm insight-llm" for="insightCloud">Cloud</label>
+                                                <input type="radio" class="btn-check" name="insightProvider" id="insightLlamaCpp" value="llm_llamacpp">
+                                                <label class="btn btn-outline-success btn-sm insight-llm" for="insightLlamaCpp">Ornith</label>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3 col-6">
+                                    <div class="col-xl-3 col-md-12 col-12">
                                         <label class="small fw-semibold text-muted d-block">Gaya Jawaban</label>
                                         <div class="d-flex gap-1">
-                                            <select id="replyProvider" class="form-select form-select-sm" style="flex:1">
+                                            <select id="replyProvider" class="form-select form-select-sm" style="flex:1; min-width:0">
                                                 <option value="deterministic">Ringkas</option>
                                                 <option value="llm">Natural</option>
                                             </select>
-                                            <select id="replyLlmProvider" class="form-select form-select-sm" style="flex:1">
+                                            <select id="replyLlmProvider" class="form-select form-select-sm" style="flex:1; min-width:0">
                                                 <option value="llamacpp">Ornith</option>
                                                 <option value="local">Ollama</option>
                                                 <option value="cloud">Cloud</option>
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-3 col-6">
+                                    <div class="col-xl-3 col-md-12 col-12">
                                         <label class="small fw-semibold text-muted d-block">Filter</label>
                                         <div class="d-flex gap-1">
-                                            <select id="filterTgl" class="form-select form-select-sm">
+                                            <select id="filterTgl" class="form-select form-select-sm" style="min-width:0">
                                                 <option value="">Semua Tgl</option>
                                                 <option value="TGL_STATUS_TERAKHIR >= TO_DATE('2025-01-01','YYYY-MM-DD')">2025+</option>
                                                 <option value="TGL_STATUS_TERAKHIR >= TO_DATE('2026-01-01','YYYY-MM-DD')">2026+</option>
                                             </select>
-                                            <select id="filterIzin" class="form-select form-select-sm">
+                                            <select id="filterIzin" class="form-select form-select-sm" style="min-width:0">
                                                 <option value="">Semua Izin</option>
                                                 <option value="PERIZINAN IN ('PB')">PB</option>
                                                 <option value="PERIZINAN IN ('PL')">PL</option>
@@ -153,8 +157,18 @@
                                         <i class="bi bi-check-circle me-1"></i> Jawaban
                                         <span id="elapsedBadge" class="badge bg-secondary ms-2 d-none"></span>
                                         <span id="intentBadge" class="badge bg-info ms-1 d-none"></span>
+                                        <button class="btn btn-sm btn-outline-success border-0 ms-1" id="waToggle" onclick="toggleWA()" title="Lihat preview chatbot WhatsApp" type="button">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </button>
                                     </label>
                                     <div id="replyBox" class="p-3 bg-success-subtle border border-success rounded-3"></div>
+                                    <div id="waPreview" class="d-none mt-2">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="badge bg-success"><i class="bi bi-whatsapp me-1"></i>Chatbot Preview</span>
+                                            <small class="text-muted ms-2">Pesan yang diterima pengguna WhatsApp</small>
+                                        </div>
+                                        <div class="p-3 rounded-3 small" id="whatsappReply" style="background:#dcf8c6;border:1px solid #b3d9a0;white-space:pre-wrap;word-break:break-word"></div>
+                                    </div>
                                 </div>
                                 <div id="insightPanel" class="mb-2 d-none">
                                     <label class="form-label fw-semibold text-info">
