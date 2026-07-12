@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: eduquery-app
+    container_name: biquery-app
     restart: unless-stopped
     env_file:
       - .env

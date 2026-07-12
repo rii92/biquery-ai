@@ -10,7 +10,7 @@ wheels/
 .venv
 
 # SQLite database (auto-generated during init)
-database/eduquery.db
+database/biquery.db
 
 # Document PRD
 prd.md

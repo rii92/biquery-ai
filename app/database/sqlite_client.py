@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 _DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-_DB_PATH = os.getenv("SQLITE_DB_PATH", str(_DB_DIR / "eduquery.db"))
+_DB_PATH = os.getenv("SQLITE_DB_PATH", str(_DB_DIR / "biquery.db"))
 
 
 class SQLiteClient:

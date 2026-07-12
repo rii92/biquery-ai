@@ -33,8 +33,8 @@ BP Batam Ai adalah sistem tanya-jawab database BP Batam (Oracle) & database seko
 
 ```bash
 # Clone repository
-git clone <url-repository> eduquery-ai
-cd eduquery-ai
+git clone <url-repository> biquery-ai
+cd biquery-ai
 
 # Copy environment file
 cp .env.example .env
@@ -51,7 +51,7 @@ Edit file `.env` sesuai lingkungan Anda:
 DB_IS_LOCAL=true              # true = SQLite, false = MySQL
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=db_eduquery
+DB_NAME=db_biquery
 DB_USER=root
 DB_PASSWORD=p@ssw0rd!
 
@@ -65,7 +65,7 @@ APP_HOST=0.0.0.0
 APP_PORT=8000
 
 # ── SQLite ────────────────────────────────────────────
-SQLITE_PATH=database/eduquery.db
+SQLITE_PATH=database/biquery.db
 
 # ── Tahun Ajaran ──────────────────────────────────────
 ACADEMIC_YEARS=2023/2024,2024/2025,2025/2026
@@ -325,7 +325,7 @@ uv run python -m app.database.migrate
 ModuleNotFoundError: No module named 'app'
 ```
 
-Solusi: Pastikan Anda menjalankan perintah dari root project (`eduquery-ai/`), bukan dari subfolder.
+Solusi: Pastikan Anda menjalankan perintah dari root project (`biquery-ai/`), bukan dari subfolder.
 
 ### Ollama tidak merespons
 

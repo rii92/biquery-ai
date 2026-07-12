@@ -1,5 +1,5 @@
 [project]
-name = "eduquery-ai"
+name = "biquery-ai"
 version = "0.1.0"
 description = "Sistem tanya-jawab database BP Batam Data Warehouse berbasis bahasa alami"
 requires-python = ">=3.11"

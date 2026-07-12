@@ -34,7 +34,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase
 
 # ── Database ──
 DB_TYPE = os.getenv("DB_TYPE", "oracle")  # "oracle" | "sqlite"
-SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "data/eduquery.db")
+SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "data/biquery.db")
 
 # ── BP Batam Oracle ──
 BP_DB_USER = os.getenv("BP_DB_USER", "us_dwh")

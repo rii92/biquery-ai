@@ -1,6 +1,6 @@
 /* BP Batam — frontend */
 
-const STORAGE_KEY = 'eduquery_bp_history';
+const STORAGE_KEY = 'biquery_bp_history';
 
 let sqlEditor = null;
 let timerInterval = null;
