@@ -153,22 +153,12 @@
                             <div id="resultPanel" class="d-none">
                                 <hr />
                                 <div class="mb-2">
-                                    <label class="form-label fw-semibold text-success">
-                                        <i class="bi bi-check-circle me-1"></i> Jawaban
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-success"><i class="bi bi-whatsapp me-1"></i>Jawaban</span>
                                         <span id="elapsedBadge" class="badge bg-secondary ms-2 d-none"></span>
                                         <span id="intentBadge" class="badge bg-info ms-1 d-none"></span>
-                                        <button class="btn btn-sm btn-outline-success border-0 ms-1" id="waToggle" onclick="toggleWA()" title="Lihat preview chatbot WhatsApp" type="button">
-                                            <i class="bi bi-whatsapp"></i>
-                                        </button>
-                                    </label>
-                                    <div id="replyBox" class="p-3 bg-success-subtle border border-success rounded-3"></div>
-                                    <div id="waPreview" class="d-none mt-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <span class="badge bg-success"><i class="bi bi-whatsapp me-1"></i>Chatbot Preview</span>
-                                            <small class="text-muted ms-2">Pesan yang diterima pengguna WhatsApp</small>
-                                        </div>
-                                        <div class="p-3 rounded-3 small" id="whatsappReply" style="background:#dcf8c6;border:1px solid #b3d9a0;white-space:pre-wrap;word-break:break-word"></div>
                                     </div>
+                                    <div id="replyBox" class="p-3 rounded-3" style="background:#dcf8c6;border:1px solid #b3d9a0;white-space:pre-wrap;word-break:break-word"></div>
                                 </div>
                                 <div id="insightPanel" class="mb-2 d-none">
                                     <label class="form-label fw-semibold text-info">
