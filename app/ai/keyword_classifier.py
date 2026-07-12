@@ -26,15 +26,15 @@ def classify_by_keyword(question: str) -> Optional[Dict[str, Any]]:
 
     # Greetings (system-level, not from intents.json)
     if re.search(r"\b(kamu|lu|kau|anda)\s*(siapa|ini)\b", q):
-        return {"intent": "_greeting", "_reply": "Aku adalah <b>EduQuery AI</b>, asisten data warehouse BP Batam."}
+        return {"intent": "_greeting", "_reply": "Aku adalah <b>BP Batam Ai</b>, asisten data warehouse BP Batam."}
     if re.search(r"\b(siapa)\s+(kamu|lu|kau|anda|ini)\b", q):
-        return {"intent": "_greeting", "_reply": "Aku adalah <b>EduQuery AI</b>, asisten data warehouse BP Batam."}
+        return {"intent": "_greeting", "_reply": "Aku adalah <b>BP Batam Ai</b>, asisten data warehouse BP Batam."}
     if re.search(r"\b(halo|hai|hey|hi|selamat\s+\w+)\b", q):
         return {"intent": "_greeting", "_reply": "Halo! Ada yang bisa saya bantu?"}
     if re.search(r"\b(terima\s*kasih|makasih|thanks|trims)\b", q):
         return {"intent": "_greeting", "_reply": "Sama-sama! Senang bisa membantu."}
     if re.search(r"\b(siapa\s*nama|namamu|nama\s*kamu|nama\s*anda)\b", q):
-        return {"intent": "_greeting", "_reply": "Namaku <b>EduQuery AI</b>! Asisten data warehouse BP Batam."}
+        return {"intent": "_greeting", "_reply": "Namaku <b>BP Batam Ai</b>! Asisten data warehouse BP Batam."}
 
     # Dynamic intent matching from intents.json
     result = find_intent_by_keywords(q)

@@ -12,7 +12,7 @@ from app.api.config import router as config_router
 from app.api.intents import router as intents_router
 from app.core.config import DASHBOARD_USERNAME, DASHBOARD_PASSWORD
 
-app = FastAPI(title="EduQuery AI — BP Batam", version="2.0.0")
+app = FastAPI(title="BP Batam Ai — BP Batam", version="2.0.0")
 
 static_dir = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -27,7 +27,7 @@ async def auth_middleware(request: Request, call_next):
             if not auth.startswith("Basic "):
                 return Response(
                     status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="EduQuery AI"'},
+                    headers={"WWW-Authenticate": 'Basic realm="BP Batam Ai"'},
                     content='{"detail":"Unauthorized"}',
                     media_type="application/json",
                 )
@@ -37,12 +37,12 @@ async def auth_middleware(request: Request, call_next):
             except Exception:
                 return Response(
                     status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="EduQuery AI"'},
+                    headers={"WWW-Authenticate": 'Basic realm="BP Batam Ai"'},
                 )
             if username != DASHBOARD_USERNAME or password != DASHBOARD_PASSWORD:
                 return Response(
                     status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="EduQuery AI"'},
+                    headers={"WWW-Authenticate": 'Basic realm="BP Batam Ai"'},
                 )
     return await call_next(request)
 

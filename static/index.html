@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>BP Batam — EduQuery AI</title>
+        <title>BP Batam — BP Batam Ai</title>
         <link
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
             rel="stylesheet"
@@ -57,10 +57,10 @@
                                         placeholder="Contoh: Total masuk izin BP Batam"
                                         onkeydown="if (event.key === 'Enter') submitQuery();"
                                     />
-                                    <button class="btn btn-outline-info me-1" id="aiToggle" onclick="toggleAI()" title="AI Insight">
-                                        <i class="bi bi-stars"></i>
+                                    <button class="btn btn-outline-info" id="aiToggle" onclick="toggleAI()" title="AI Insight">
+                                        <i class="bi bi-stars fs-5"></i>
                                     </button>
-                                    <button class="btn btn-warning text-dark" onclick="submitQuery()">
+                                    <button class="btn btn-warning text-dark px-3" onclick="submitQuery()">
                                         <i class="bi bi-send me-1"></i> Proses
                                     </button>
                                 </div>
@@ -68,8 +68,8 @@
 
                             <!-- Provider Selection Card -->
                             <div class="card card-body bg-light mb-3 py-2 px-3">
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-4">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-3 col-6">
                                         <label class="small fw-semibold text-muted d-block">LLM Fallback</label>
                                         <div class="btn-group btn-group-sm w-100">
                                             <input type="radio" class="btn-check" name="intentProvider" id="intentProviderLocal" value="local" checked>
@@ -80,11 +80,11 @@
                                             <label class="btn btn-outline-primary btn-sm" for="intentProviderLlamaCpp">Ornith</label>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3 col-6">
                                         <label class="small fw-semibold text-muted d-block">Insight Provider</label>
                                         <div class="btn-group btn-group-sm w-100">
                                             <input type="radio" class="btn-check" name="insightProvider" id="insightDet" value="deterministic" checked>
-                                            <label class="btn btn-outline-success btn-sm" for="insightDet">Deterministik</label>
+                                            <label class="btn btn-outline-success btn-sm" for="insightDet">Det</label>
                                             <input type="radio" class="btn-check" name="insightProvider" id="insightLocal" value="llm">
                                             <label class="btn btn-outline-success btn-sm insight-llm" for="insightLocal">Ollama</label>
                                             <input type="radio" class="btn-check" name="insightProvider" id="insightCloud" value="llm_cloud">
@@ -93,12 +93,12 @@
                                             <label class="btn btn-outline-success btn-sm insight-llm" for="insightLlamaCpp">Ornith</label>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 col-6">
                                         <label class="small fw-semibold text-muted d-block">Gaya Jawaban</label>
                                         <div class="d-flex gap-1">
                                             <select id="replyProvider" class="form-select form-select-sm" style="flex:1">
-                                                <option value="deterministic">Ringkas (Template)</option>
-                                                <option value="llm">Natural (LLM)</option>
+                                                <option value="deterministic">Ringkas</option>
+                                                <option value="llm">Natural</option>
                                             </select>
                                             <select id="replyLlmProvider" class="form-select form-select-sm" style="flex:1">
                                                 <option value="llamacpp">Ornith</option>
@@ -107,11 +107,11 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3 col-6">
                                         <label class="small fw-semibold text-muted d-block">Filter</label>
                                         <div class="d-flex gap-1">
                                             <select id="filterTgl" class="form-select form-select-sm">
-                                                <option value="">Semua Tanggal</option>
+                                                <option value="">Semua Tgl</option>
                                                 <option value="TGL_STATUS_TERAKHIR >= TO_DATE('2025-01-01','YYYY-MM-DD')">2025+</option>
                                                 <option value="TGL_STATUS_TERAKHIR >= TO_DATE('2026-01-01','YYYY-MM-DD')">2026+</option>
                                             </select>
@@ -270,7 +270,7 @@
         </div>
 
         <footer class="container mt-4 mb-3 text-center text-muted small">
-            EduQuery AI &mdash; BP Batam Data Warehouse &mdash; Executive Summary
+            BP Batam Ai &mdash; BP Batam Data Warehouse &mdash; Executive Summary
         </footer>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

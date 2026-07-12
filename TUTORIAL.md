@@ -1,6 +1,6 @@
-# Tutorial Menjalankan EduQuery AI
+# Tutorial Menjalankan BP Batam Ai
 
-EduQuery AI adalah sistem tanya-jawab database BP Batam (Oracle) & database sekolah berbasis bahasa alami.
+BP Batam Ai adalah sistem tanya-jawab database BP Batam (Oracle) & database sekolah berbasis bahasa alami.
 
 ## Daftar Isi
 

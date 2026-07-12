@@ -22,7 +22,7 @@ CLOUD_API_KEY = os.getenv("CLOUD_API_KEY", "")
 CLOUD_API_URL = os.getenv("CLOUD_API_URL", "https://openrouter.ai/api/v1")
 CLOUD_MODEL = os.getenv("CLOUD_MODEL", "gpt-4o-mini")
 CLOUD_REFERER = os.getenv("CLOUD_REFERER", "http://localhost:8000")
-CLOUD_TITLE = os.getenv("CLOUD_TITLE", "EduQuery AI")
+CLOUD_TITLE = os.getenv("CLOUD_TITLE", "BP Batam Ai")
 
 # ── llama.cpp (Local GPU Server) ──
 LLAMACPP_API_URL = os.getenv("LLAMACPP_API_URL", "http://172.18.32.172:8080/v1")

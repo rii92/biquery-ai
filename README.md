@@ -1,6 +1,6 @@
-# EduQuery AI — BP Batam Data Warehouse
+# BP Batam Ai — BP Batam Data Warehouse
 
-EduQuery AI adalah sistem tanya-jawab database **BP Batam Data Warehouse** berbasis bahasa alami. Mengakses data perizinan dari Oracle DB (`US_DWH.BI_MART_STATUS_PERIZINAN`) melalui antarmuka web dan endpoint API.
+BP Batam Ai adalah sistem tanya-jawab database **BP Batam Data Warehouse** berbasis bahasa alami. Mengakses data perizinan dari Oracle DB (`US_DWH.BI_MART_STATUS_PERIZINAN`) melalui antarmuka web dan endpoint API.
 
 ## Fitur
 
