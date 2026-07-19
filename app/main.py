@@ -10,6 +10,7 @@ from app.api.webhook import router as webhook_router
 from app.api.query import router as query_router
 from app.api.config import router as config_router
 from app.api.intents import router as intents_router
+from app.api.analyze import router as analyze_router
 from app.core.config import DASHBOARD_USERNAME, DASHBOARD_PASSWORD
 
 app = FastAPI(title="BP Batam Ai — BP Batam", version="2.0.0")
@@ -56,6 +57,7 @@ app.include_router(webhook_router)
 app.include_router(query_router)
 app.include_router(config_router)
 app.include_router(intents_router)
+app.include_router(analyze_router)
 
 
 @app.get("/intents")

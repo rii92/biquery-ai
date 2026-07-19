@@ -415,6 +415,68 @@ Response: Array of intent objects (lihat struktur intent di bawah).
 
 Response: Single intent object atau 404 jika tidak ditemukan.
 
+---
+
+## 3. Endpoint Insight & Rekomendasi
+
+### 3.1 `POST /api/analyze`
+
+Menganalisis jawaban chatbot dan menghasilkan insight serta rekomendasi otomatis menggunakan LLM (Ornith/Ollama/Cloud).
+
+#### Request
+
+**Method**: `POST`
+**URL**: `/api/analyze`
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "query": "Total masuk izin BP Batam",
+  "output_jawaban": "Total dokumen: 5000, total terbit: 3500...",
+  "template_output_jawaban": "Distribusi {total_dokumen} permohonan...",
+  "llm_provider": "llamacpp"
+}
+```
+
+**Parameter**:
+
+| Field | Type | Default | Keterangan |
+|-------|------|---------|------------|
+| `query` | string | (required) | Pertanyaan asli user |
+| `output_jawaban` | string | (required) | Jawaban chatbot yang sudah dihasilkan |
+| `template_output_jawaban` | string | `""` | Template format jawaban (opsional) |
+| `llm_provider` | string | `"llamacpp"` | Provider LLM: `llamacpp`, `local`, `cloud` |
+
+#### Response
+
+```json
+{
+  "jawaban_insight": "Dari 5000 total dokumen, 3500 (70%) sudah terbit dan 800 masih dalam proses. Ini menunjukkan tingkat penyelesaian yang baik, namun terdapat 150 dokumen overdue yang perlu perhatian.",
+  "jawaban_rekomendasi": "Fokus pada 150 dokumen overdue dengan melakukan review dan redistribusi beban kerja verifikator untuk mengurangi bottleneck."
+}
+```
+
+#### cURL Contoh
+
+```bash
+curl -X POST "http://localhost:8000/api/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Total masuk izin BP Batam",
+    "output_jawaban": "Total 5000 dokumen dengan 3500 terbit, 500 ditolak, 800 dalam proses, 150 overdue.",
+    "llm_provider": "llamacpp"
+  }'
+```
+
+#### Alur Pemrosesan
+
+```
+Request → Build Prompt (query + jawaban + template)
+       → LLM (Ornith/Ollama/Cloud) → Parse JSON response
+       → {jawaban_insight, jawaban_rekomendasi}
+```
+
 #### Create Intent
 
 **Method**: `POST`
