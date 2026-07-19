@@ -10,6 +10,7 @@ class AnalyzeRequest(BaseModel):
     query: str
     output_jawaban: str
     template_output_jawaban: str = ""
+    template_output_rekomendasi: str = ""
     llm_provider: str = "llamacpp"
 
 
@@ -24,6 +25,7 @@ async def analyze(req: AnalyzeRequest):
         query=req.query,
         output_jawaban=req.output_jawaban,
         template_output_jawaban=req.template_output_jawaban,
+        template_output_rekomendasi=req.template_output_rekomendasi,
         llm_provider=req.llm_provider,
     )
     return AnalyzeResponse(**result)

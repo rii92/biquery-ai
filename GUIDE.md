@@ -432,9 +432,10 @@ Menganalisis jawaban chatbot dan menghasilkan insight serta rekomendasi otomatis
 **Body**:
 ```json
 {
-  "query": "Total masuk izin BP Batam",
-  "output_jawaban": "Total dokumen: 5000, total terbit: 3500...",
-  "template_output_jawaban": "Distribusi {total_dokumen} permohonan...",
+  "query": "SELECT COUNT(NO_PERMOHONAN) AS TOTAL_DOKUMEN, ... FROM US_DWH.BI_T_ALL ...",
+  "output_jawaban": "[{\"TOTAL_DOKUMEN\": 106013, \"TOTAL_TERBIT\": 78077, ...}]",
+  "template_output_jawaban": "Distribusi {total_dokumen} permohonan: dominasi output final ({total_terbit} terbit), dengan {total_dalam_proses} masih dalam proses dan {total_overdue} sebagai indikasi bottleneck.",
+  "template_output_rekomendasi": "Lakukan deep-dive pada {total_overdue} dokumen overdue untuk identifikasi bottleneck dan redistribusi beban kerja.",
   "llm_provider": "llamacpp"
 }
 ```
@@ -443,9 +444,10 @@ Menganalisis jawaban chatbot dan menghasilkan insight serta rekomendasi otomatis
 
 | Field | Type | Default | Keterangan |
 |-------|------|---------|------------|
-| `query` | string | (required) | Pertanyaan asli user |
-| `output_jawaban` | string | (required) | Jawaban chatbot yang sudah dihasilkan |
-| `template_output_jawaban` | string | `""` | Template format jawaban (opsional) |
+| `query` | string | (required) | SQL query yang dijalankan |
+| `output_jawaban` | string/list | (required) | Hasil query (JSON array) |
+| `template_output_jawaban` | string | `""` | Template format untuk insight (opsional) |
+| `template_output_rekomendasi` | string | `""` | Template format untuk rekomendasi (opsional) |
 | `llm_provider` | string | `"llamacpp"` | Provider LLM: `llamacpp`, `local`, `cloud` |
 
 #### Response
@@ -462,9 +464,12 @@ Menganalisis jawaban chatbot dan menghasilkan insight serta rekomendasi otomatis
 ```bash
 curl -X POST "http://localhost:8000/api/analyze" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(echo -n admin:12345 | base64)" \
   -d '{
-    "query": "Total masuk izin BP Batam",
-    "output_jawaban": "Total 5000 dokumen dengan 3500 terbit, 500 ditolak, 800 dalam proses, 150 overdue.",
+    "query": "SELECT COUNT(NO_PERMOHONAN) AS TOTAL_DOKUMEN, COALESCE(SUM(CASE WHEN KATEGORI_STATUS = '\''TERBIT'\'' THEN 1 ELSE 0 END), 0) AS TOTAL_TERBIT FROM US_DWH.BI_T_ALL",
+    "output_jawaban": "[{\"TOTAL_DOKUMEN\": 106013, \"TOTAL_TERBIT\": 78077}]",
+    "template_output_jawaban": "Dari {total_dokumen} total dokumen, {total_terbit} sudah terbit.",
+    "template_output_rekomendasi": "Fokus percepatan pada sisa dokumen yang belum terbit.",
     "llm_provider": "llamacpp"
   }'
 ```
