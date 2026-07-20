@@ -16,6 +16,8 @@ SOURCE_PARAM_MAPS = {
         "bp_all_kpi_card": {
             "tahun": ("tahun", "TO_CHAR(TGL_STATUS_TERAKHIR, 'YYYY') = '{v}'"),
             "bulan": ("bulan", "TO_CHAR(TGL_STATUS_TERAKHIR, 'MM') = '{v}'"),
+            "tanggal_awal": ("tgl_status_terakhir", "TRUNC(TGL_STATUS_TERAKHIR) >= TO_DATE('{v}','YYYY-MM-DD')"),
+            "tanggal_akhir": ("tgl_status_terakhir", "TRUNC(TGL_STATUS_TERAKHIR) <= TO_DATE('{v}','YYYY-MM-DD')"),
         },
         "__default__": {
             "tahun": ("filter_tahun", "TAHUN = '{v}'"),
