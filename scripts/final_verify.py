@@ -1,7 +1,8 @@
 """Final verification: SQL generation, formatters, classifier, filter resolver."""
 import sys
 sys.path.insert(0, ".")
-from app.intents.loader import list_active_intents, find_intent_by_keywords, get_intent
+from app.intents.loader import list_active_intents, get_intent
+from app.ai.keyword_classifier import classify_by_keyword
 from app.services.bp_formatter_service import format_bp_reply, _FORMATTERS
 from app.services.bp_database_service import BPDatabaseService
 from app.ai.filter_resolver import FilterResolver
@@ -111,7 +112,7 @@ test_questions = [
 ]
 
 for question, expected_intent in test_questions:
-    result = find_intent_by_keywords(question)
+    result = classify_by_keyword(question)
     assert result is not None, f"No match for '{question}' (expected {expected_intent})"
     matched = result["intent"]
     if matched == expected_intent:

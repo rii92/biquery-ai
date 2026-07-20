@@ -1,13 +1,14 @@
 """Test the exact user query."""
 import sys
 sys.path.insert(0, ".")
-from app.intents.loader import find_intent_by_keywords, get_intent
+from app.ai.keyword_classifier import classify_by_keyword
+from app.intents.loader import get_intent
 from app.ai.filter_resolver import FilterResolver
 
 query = "total izin bp batam tahun 2025"
 print(f"Query: {query!r}")
 
-result = find_intent_by_keywords(query)
+result = classify_by_keyword(query)
 if result:
     intent_id = result["intent"]
     print(f"  Intent matched: {intent_id}")

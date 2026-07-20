@@ -4,6 +4,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict
 
+from app.intents.loader import get_intent
+
 MONTH_NAMES = {
     "januari": "01", "februari": "02", "maret": "03",
     "april": "04", "mei": "05", "juni": "06",
@@ -51,6 +53,28 @@ SOURCE_PARAM_MAPS = {
 }
 
 MONTH_PATTERN = '|'.join(MONTH_NAMES.keys())
+
+IZIN_PATTERNS = [
+    (r'\bPB\s*UMKU\b', "SUB_JENIS_IZIN", "PB UMKU"),
+    (r'\bPB\s*PERSEROAN\b', "SUB_JENIS_IZIN", "PB PERSEROAN"),
+    (r'\bPB\s*PERORANGAN\b', "SUB_JENIS_IZIN", "PB PERORANGAN"),
+    (r'\bPL\s*PERSEROAN\b', "SUB_JENIS_IZIN", "PL PERSEROAN"),
+    (r'\bPL\s*PERORANGAN\b', "SUB_JENIS_IZIN", "PL PERORANGAN"),
+    (r'\bPB\b', "JENIS_IZIN", "PB"),
+    (r'\bPL\b', "JENIS_IZIN", "PL"),
+    (r'\bLALIN\b', "JENIS_IZIN", "LALIN"),
+]
+
+STATUS_KEYWORDS = [
+    (r'\bterbit\b', "TERBIT"),
+    (r'\bdisetujui\b', "TERBIT"),
+    (r'\btolak\b', "TOLAK"),
+    (r'\bditolak\b', "TOLAK"),
+    (r'\bdalam\s+proses\b', "DALAM PROSES"),
+    (r'\bproses\s+pelaku\s+usaha\b', "PROSES PELAKU USAHA"),
+    (r'\bcabut\b', "CABUT"),
+    (r'\bdicabut\b', "CABUT"),
+]
 
 
 class FilterResolver:
@@ -105,23 +129,41 @@ class FilterResolver:
 
         return filters
 
+    def resolve_entities(self, question: str) -> Dict[str, str]:
+        """Extract non-temporal entities (izin type, status) from question."""
+        entities = {}
+        q_upper = question.upper()
+
+        for pattern, etype, value in IZIN_PATTERNS:
+            if re.search(pattern, q_upper):
+                entities["izin_type"] = value
+                entities["izin_column"] = etype
+                break
+
+        for pattern, status in STATUS_KEYWORDS:
+            if re.search(pattern, question.lower()):
+                entities["status"] = status
+                break
+
+        return entities
+
     def apply(self, question: str, intent_id: str) -> Dict[str, str]:
-        """Resolve temporal keywords and map to intent-specific SQL param clauses.
+        """Resolve temporal keywords + entities, map to intent-specific SQL clauses.
 
         Returns:
-            Dict like {"filter_tahun": "TAHUN = '2025'", ...}
-            ready to be merged into the SQL generation payload.
+            Dict of SQL param → SQL clause ready to be merged into payload.
         """
-        standard = self.resolve(question)
-        if not standard:
-            return {}
-
         source = intent_id.split("_")[0]
         source_map = SOURCE_PARAM_MAPS.get(source, {})
         intent_map = source_map.get(intent_id, source_map.get("__default__", {}))
 
+        meta = get_intent(intent_id)
+        intent_params = meta.get("params", {}) if meta else {}
+
         payload = {}
 
+        # ── Temporal filters ──
+        standard = self.resolve(question)
         if "tahun" in standard and "tahun" in intent_map:
             param, template = intent_map["tahun"]
             payload[param] = template.replace("{v}", standard["tahun"])
@@ -140,5 +182,29 @@ class FilterResolver:
         if rentang_parts:
             target = intent_map.get("tanggal_awal", intent_map.get("tanggal_akhir"))[0]
             payload[target] = " AND ".join(rentang_parts)
+
+        # ── Entity filters (izin type, status) ──
+        entities = self.resolve_entities(question)
+
+        if "izin_type" in entities:
+            izin = entities["izin_type"]
+            col = entities.get("izin_column", "JENIS_IZIN")
+
+            if "perizinan" in intent_params:
+                payload["perizinan"] = f"UPPER(JENIS_IZIN) = UPPER('{izin}')"
+            elif "pilih_izin" in intent_params:
+                if source == "bp":
+                    payload["pilih_izin"] = f"(UPPER(JENIS_IZIN) = UPPER('{izin}') OR UPPER(KATEGORI_IZIN_LALIN) = UPPER('{izin}'))"
+                else:
+                    payload["pilih_izin"] = f"UPPER({col}) = UPPER('{izin}')"
+            elif "pilih_sub_izin" in intent_params and col == "SUB_JENIS_IZIN":
+                payload["pilih_sub_izin"] = f"UPPER({col}) = UPPER('{izin}')"
+            elif "pilih_izin_iboss" in intent_params:
+                payload["pilih_izin_iboss"] = f"UPPER(TX_PERMOHONAN.KATEGORI_IZIN) = UPPER('{izin}')"
+
+        if "status" in entities:
+            status = entities["status"]
+            if "kategori_status" in intent_params:
+                payload["kategori_status"] = f"KATEGORI_STATUS = '{status}'"
 
         return payload
