@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted
 from app.ai.embedding_classifier import classify_by_embedding
+from app.ai.filter_resolver import FilterResolver
 from app.llm.client import LLMClient
 from app.services.bp_database_service import BPDatabaseService, DatabaseConnectionError
 from app.services.bp_formatter_service import format_bp_reply
@@ -126,6 +127,16 @@ async def _sse_process(req_data: dict):
                 "elapsed": round(time.time() - t0, 2), "progress": 100,
             })
             return
+
+    # ── Step 5.5: FilterResolver (temporal keyword → SQL params) ──
+    if intent and intent not in ("_greeting",):
+        resolver = FilterResolver()
+        resolved = resolver.apply(message, intent)
+        if resolved:
+            payload.update(resolved)
+            for k in resolved:
+                if k in req_data and not req_data.get(k):
+                    req_data[k] = resolved[k]
 
     # ── Step 6: Terapkan filter ──
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",
@@ -251,6 +262,13 @@ async def query(req: QueryRequest):
 
     if not intent:
         return QueryResponse(reply="Maaf, tidak dapat memahami pertanyaan.", elapsed=round(time.time() - t0, 2))
+
+    # Step 5.5: FilterResolver (temporal keyword → SQL params)
+    if intent and intent not in ("_greeting",):
+        resolver = FilterResolver()
+        resolved = resolver.apply(req.message, intent)
+        if resolved:
+            payload.update(resolved)
 
     # Step 6: Apply filters
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",

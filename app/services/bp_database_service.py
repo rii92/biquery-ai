@@ -27,6 +27,8 @@ class BPDatabaseService:
                 self._clients[source] = VossClient()
             elif source == "bcare":
                 self._clients[source] = BcareClient()
+            elif source == "oss":
+                self._clients[source] = BPClient()
             elif DB_TYPE == "sqlite":
                 self._clients[source] = SQLiteClient()
             else:

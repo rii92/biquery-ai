@@ -122,6 +122,110 @@ def _fmt_rapor_staf(payload, result):
     return "**Rapor Staf (Top 5)**:\n" + "\n".join(lines)
 
 
+# ── OSS FORMATTERS ───────────────────────────────────────────────────────────
+
+def _fmt_oss_kpi_card(payload, result):
+    if not result:
+        return "Data KPI OSS tidak ditemukan."
+    r = result[0]
+    total = r.get("TOTAL_DOKUMEN", 0) or 0
+    terbit = r.get("TOTAL_TERBIT", 0) or 0
+    tolak = r.get("TOTAL_TOLAK", 0) or 0
+    pelaku_usaha = r.get("TOTAL_PELAKU_USAHA", 0) or 0
+    proses = r.get("TOTAL_DALAM_PROSES", 0) or 0
+    overdue = r.get("TOTAL_MELEWATI_SLA", 0) or 0
+    persen_terbit = round(terbit / total * 100, 1) if total else 0
+    return (
+        f"**Ringkasan KPI Permohonan OSS**\n\n"
+        f"📋 **Total Dokumen**: {total}\n\n"
+        f"✅ **Terbit**: {terbit} ({persen_terbit}%)\n"
+        f"❌ **Ditolak**: {tolak}\n"
+        f"🔄 **Proses Pelaku Usaha**: {pelaku_usaha}\n"
+        f"⏳ **Dalam Proses**: {proses}\n"
+        f"⚠️ **Melewati SLA**: {overdue}"
+    )
+
+
+def _fmt_oss_tren_inflow_outflow(payload, result):
+    if not result:
+        return "Data tren OSS tidak ditemukan."
+    lines = []
+    for r in result[:10]:
+        tgl = _val(r.get("TANGGAL", ""))
+        inflow = r.get("INFLOW_PERMOHONAN", 0)
+        outflow = r.get("OUTFLOW_TERBIT", 0)
+        lines.append(f"- {tgl}: Masuk {inflow}, Terbit {outflow}")
+    if len(result) > 10:
+        sisa = sum(r.get("INFLOW_PERMOHONAN", 0) for r in result[10:])
+        lines.append(f"- ... dan {len(result) - 10} hari lainnya ({sisa} masuk)")
+    return "**Tren Inflow vs Outflow (OSS)**:\n" + "\n".join(lines)
+
+
+def _fmt_oss_flow(payload, result):
+    if not result:
+        return "Data flow OSS tidak ditemukan."
+    lines = []
+    for r in result[:15]:
+        src = _val(r.get("SOURCE", ""))
+        tgt = _val(r.get("TARGET", ""))
+        val = r.get("VALUE", 0)
+        lines.append(f"- {src} → {tgt}: {val}")
+    if len(result) > 15:
+        lines.append(f"- ... dan {len(result) - 15} aliran lainnya")
+    return "**Alur Status Permohonan (OSS)**:\n" + "\n".join(lines)
+
+
+# ── iBOSS FORMATTERS ─────────────────────────────────────────────────────────
+
+def _fmt_iboss_kpi_card(payload, result):
+    if not result:
+        return "Data KPI iBOSS tidak ditemukan."
+    r = result[0]
+    total = r.get("TOTAL_PERMOHONAN", 0) or 0
+    terbit = r.get("TOTAL_TERBIT", 0) or 0
+    tolak = r.get("TOTAL_TOLAK", 0) or 0
+    cabut = r.get("TOTAL_CABUT", 0) or 0
+    proses = r.get("TOTAL_PROSES", 0) or 0
+    persen_terbit = round(terbit / total * 100, 1) if total else 0
+    return (
+        f"**Ringkasan KPI Permohonan iBOSS**\n\n"
+        f"📋 **Total Permohonan**: {total}\n\n"
+        f"✅ **Terbit**: {terbit} ({persen_terbit}%)\n"
+        f"❌ **Ditolak**: {tolak}\n"
+        f"📌 **Dicabut**: {cabut}\n"
+        f"⏳ **Dalam Proses**: {proses}"
+    )
+
+
+def _fmt_iboss_tren_inflow_outflow(payload, result):
+    if not result:
+        return "Data tren iBOSS tidak ditemukan."
+    lines = []
+    for r in result[:10]:
+        tgl = _val(r.get("TANGGAL", ""))
+        inflow = r.get("INFLOW_MASUK", 0)
+        outflow = r.get("OUTFLOW_TERBIT", 0)
+        lines.append(f"- {tgl}: Masuk {inflow}, Terbit {outflow}")
+    if len(result) > 10:
+        sisa = sum(r.get("INFLOW_MASUK", 0) for r in result[10:])
+        lines.append(f"- ... dan {len(result) - 10} hari lainnya ({sisa} masuk)")
+    return "**Tren Inflow vs Outflow (iBOSS)**:\n" + "\n".join(lines)
+
+
+def _fmt_iboss_flow(payload, result):
+    if not result:
+        return "Data flow iBOSS tidak ditemukan."
+    lines = []
+    for r in result[:15]:
+        src = _val(r.get("SOURCE", ""))
+        tgt = _val(r.get("TARGET", ""))
+        val = r.get("VALUE", 0)
+        lines.append(f"- {src} → {tgt}: {val}")
+    if len(result) > 15:
+        lines.append(f"- ... dan {len(result) - 15} aliran lainnya")
+    return "**Alur Proses (iBOSS)**:\n" + "\n".join(lines)
+
+
 def _fmt_generic(payload, result) -> str:
     """Generic formatter — works for any intent using format_config from intents.json."""
     intent_data = get_intent(payload.get("intent", ""))
@@ -171,6 +275,14 @@ _FORMATTERS = {
     "bp_funnel_kemacetan": _fmt_funnel_kemacetan,
     "bp_proporsi_kerja": _fmt_proporsi_kerja,
     "bp_rapor_staf": _fmt_rapor_staf,
+    # OSS
+    "oss_kpi_card": _fmt_oss_kpi_card,
+    "oss_tren_inflow_outflow": _fmt_oss_tren_inflow_outflow,
+    "oss_sebaran_status_permohonan": _fmt_oss_flow,
+    # iBOSS
+    "iboss_kpi_card": _fmt_iboss_kpi_card,
+    "iboss_tren_inflow_outflow": _fmt_iboss_tren_inflow_outflow,
+    "iboss_sebaran_proses": _fmt_iboss_flow,
 }
 
 

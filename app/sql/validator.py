@@ -2,6 +2,7 @@ import re
 
 SOURCE_TABLES = {
     "bp": ["bi_t_all", "bi_h_all", "dual"],
+    "oss": ["bi_t_izin_oss", "dual"],
     "iboss": ["*"],
     "voss": ["*"],
     "bcare": ["*"],

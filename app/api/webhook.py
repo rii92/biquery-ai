@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted
 from app.ai.embedding_classifier import classify_by_embedding
+from app.ai.filter_resolver import FilterResolver
 from app.services.bp_database_service import BPDatabaseService, DatabaseConnectionError
 from app.services.bp_formatter_service import format_bp_reply
 from app.services.insight_service import InsightService
@@ -80,6 +81,13 @@ async def webhook(msg: WhatsAppMessage):
 
     if not intent:
         return {"reply": "Maaf, untuk pertanyaan tersebut data belum tersedia di sistem kami.", "elapsed": round(time.time() - t0, 2)}
+
+    # FilterResolver: temporal keyword → SQL params
+    if intent and intent not in ("_greeting",):
+        resolver = FilterResolver()
+        resolved = resolver.apply(msg.message, intent)
+        if resolved:
+            payload.update(resolved)
 
     sql = bp_service.generate_sql(payload)
     if not sql or not bp_service.validate_sql(sql):
