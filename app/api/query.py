@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted
+from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted, is_followup, is_affirmative
 from app.ai.embedding_classifier import classify_by_embedding
 from app.ai.filter_resolver import FilterResolver
 from app.llm.client import LLMClient
@@ -14,6 +14,7 @@ from app.services.bp_formatter_service import format_bp_reply
 from app.services.insight_service import InsightService
 from app.services.reply_service import generate_llm_reply
 from app.core.json_util import DateTimeEncoder, serialize_dates
+from app.core.memory import get_memory, history_to_text
 
 router = APIRouter()
 bp_service = BPDatabaseService()
@@ -21,6 +22,7 @@ bp_service = BPDatabaseService()
 
 class QueryRequest(BaseModel):
     message: str
+    session_id: str = ""
     intent_provider: str = "local"
     insight_provider: str = "deterministic"
     insight_llm_provider: str = "local"
@@ -48,6 +50,7 @@ class QueryResponse(BaseModel):
     sql: str = ""
     result: list = []
     intent: str = ""
+    session_id: str = ""
     ai_insight: str = ""
     deterministic_insight: str = ""
     elapsed: float = 0.0
@@ -63,6 +66,10 @@ async def _sse_process(req_data: dict):
     intent_provider = req_data.get("intent_provider", "local")
     insight_provider = req_data.get("insight_provider", "deterministic")
     insight_llm_provider = req_data.get("insight_llm_provider", "local")
+
+    memory = get_memory()
+    session_id = req_data.get("session_id", "") or f"anon_{int(t0)}"
+    history = memory.get_history(session_id)
 
     if not message:
         yield _event({"done": True, "reply": "Pertanyaan kosong.", "elapsed": 0, "progress": 100})
@@ -86,13 +93,33 @@ async def _sse_process(req_data: dict):
     payload = classify_by_keyword(message) or {}
     intent = payload.get("intent", "")
 
+    # ── Step 3.5: Follow-up detection ──
+    if not intent and history:
+        if is_followup(message):
+            last = history[-1]
+            if is_affirmative(message):
+                yield _event({"step": "Melanjutkan percakapan sebelumnya...", "progress": 15})
+                payload = {
+                    "intent": last.intent,
+                    **last.payload,
+                }
+                intent = last.intent
+            else:
+                yield _event({
+                    "done": True,
+                    "reply": "Baik, ada pertanyaan lain yang bisa saya bantu?",
+                    "intent": "", "session_id": session_id,
+                    "elapsed": round(time.time() - t0, 2), "progress": 100,
+                })
+                return
+
     # ── Step 4: Embedding Classifier (fallback jika keyword tidak cocok) ──
     if not intent or intent == "_greeting":
         if intent == "_greeting":
             reply = payload.get("_reply", "Halo!")
             yield _event({
                 "done": True, "reply": reply, "intent": "_greeting",
-                "sql": "", "result": [],
+                "session_id": session_id, "sql": "", "result": [],
                 "elapsed": round(time.time() - t0, 2), "progress": 100,
             })
             return
@@ -130,13 +157,14 @@ async def _sse_process(req_data: dict):
 
     # ── Step 5.5: FilterResolver (temporal keyword → SQL params) ──
     if intent and intent not in ("_greeting",):
-        resolver = FilterResolver()
-        resolved = resolver.apply(message, intent)
-        if resolved:
-            payload.update(resolved)
-            for k in resolved:
-                if k in req_data and not req_data.get(k):
-                    req_data[k] = resolved[k]
+        if not (is_followup(message) and history):
+            resolver = FilterResolver()
+            resolved = resolver.apply(message, intent)
+            if resolved:
+                payload.update(resolved)
+                for k in resolved:
+                    if k in req_data and not req_data.get(k):
+                        req_data[k] = resolved[k]
 
     # ── Step 6: Terapkan filter ──
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",
@@ -198,21 +226,24 @@ async def _sse_process(req_data: dict):
         llm_client = LLMClient(provider=insight_prov)
         llm_insight = await insight_service.llm_narration(llm_client, intent, message, result, det_insight)
 
-    # ── Step 12: Reply Formatter ──
+    # ── Step 12: Reply Formatter (with history context) ──
     reply_llm_provider = req_data.get("reply_llm_provider", "llamacpp")
     if reply_provider_val == "llm":
         yield _event({"step": f"Menyusun jawaban natural ({reply_llm_provider})...", "progress": 90})
-        reply = await generate_llm_reply(message, intent, result, payload, llm_provider=reply_llm_provider, timeout=120)
+        reply = await generate_llm_reply(message, intent, result, payload, llm_provider=reply_llm_provider, timeout=120, history=history)
         if not reply:
             reply = format_bp_reply(payload, result)
     else:
         reply = format_bp_reply(payload, result)
+
+    memory.add(session_id, message, reply, intent, sql, payload)
 
     yield _event({"step": "Menyusun jawaban...", "progress": 95})
     yield _event({
         "done": True, "reply": reply, "sql": sql,
         "result": serialize_dates(result),
         "intent": intent,
+        "session_id": session_id,
         "ai_insight": llm_insight,
         "deterministic_insight": det_insight,
         "elapsed": round(time.time() - t0, 2), "progress": 100,
@@ -223,6 +254,9 @@ async def _sse_process(req_data: dict):
 async def query(req: QueryRequest):
     t0 = time.time()
     loop = asyncio.get_event_loop()
+    memory = get_memory()
+    session_id = req.session_id or f"anon_{int(t0)}"
+    history = memory.get_history(session_id)
 
     # Step 1-2: Blacklist + Keyword
     if is_blacklisted(req.message):
@@ -232,9 +266,25 @@ async def query(req: QueryRequest):
 
     # Step 3: Greeting (fast return)
     if intent == "_greeting":
-        return QueryResponse(reply=payload.get("_reply", "Halo!"), intent="_greeting", elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply=payload.get("_reply", "Halo!"), intent="_greeting", session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 4: Embedding Classifier (fallback, thread executor agar tidak block event loop)
+    # Step 4: Follow-up handling (iya/tidak/lanjut dari percakapan sebelumnya)
+    if not intent and history:
+        if is_followup(req.message):
+            last = history[-1]
+            if is_affirmative(req.message):
+                payload = {
+                    "intent": last.intent,
+                    **last.payload,
+                }
+                intent = last.intent
+            else:
+                return QueryResponse(
+                    reply="Baik, ada pertanyaan lain yang bisa saya bantu?",
+                    session_id=session_id, elapsed=round(time.time() - t0, 2),
+                )
+
+    # Step 5: Embedding Classifier (fallback, thread executor agar tidak block event loop)
     if not intent:
         try:
             emb = await asyncio.wait_for(
@@ -247,30 +297,32 @@ async def query(req: QueryRequest):
         except (asyncio.TimeoutError, Exception):
             pass
 
-    # Step 5: LLM Fallback (user-selected provider)
+    # Step 6: LLM Fallback (user-selected provider)
     if not intent:
         llm = LLMClient(provider=req.intent_provider)
         try:
             llm_health = await llm.check_health()
             if not llm_health:
-                return QueryResponse(reply=f"Maaf, LLM {req.intent_provider} tidak tersedia.", elapsed=round(time.time() - t0, 2))
+                return QueryResponse(reply=f"Maaf, LLM {req.intent_provider} tidak tersedia.", session_id=session_id, elapsed=round(time.time() - t0, 2))
             intent_text = await llm.generate(f"Classify: {req.message}", temperature=0.1)
             payload = {"intent": intent_text.strip().lower().replace(" ", "_")}
             intent = payload["intent"]
         except Exception:
-            return QueryResponse(reply="Maaf, tidak dapat memproses pertanyaan.", elapsed=round(time.time() - t0, 2))
+            return QueryResponse(reply="Maaf, tidak dapat memproses pertanyaan.", session_id=session_id, elapsed=round(time.time() - t0, 2))
 
     if not intent:
-        return QueryResponse(reply="Maaf, tidak dapat memahami pertanyaan.", elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply="Maaf, tidak dapat memahami pertanyaan.", session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 5.5: FilterResolver (temporal keyword → SQL params)
+    # Step 6.5: FilterResolver (temporal keyword -> SQL params)
     if intent and intent not in ("_greeting",):
-        resolver = FilterResolver()
-        resolved = resolver.apply(req.message, intent)
-        if resolved:
-            payload.update(resolved)
+        # Only run resolver if NOT a follow-up (payload already has filters)
+        if not (is_followup(req.message) and history):
+            resolver = FilterResolver()
+            resolved = resolver.apply(req.message, intent)
+            if resolved:
+                payload.update(resolved)
 
-    # Step 6: Apply filters
+    # Step 7: Apply explicit request filters
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",
               "tgl_status", "staff", "action_time", "tgl_daftar", "jenis_reklame", "tgl_jatuh_tempo",
               "pilih_izin", "rentang_tgl_masuk", "filter_tahun", "filter_bulan"):
@@ -278,45 +330,52 @@ async def query(req: QueryRequest):
         if v:
             payload[k] = v
 
-    # Step 7: Generate SQL
+    # Step 8: Generate SQL
     sql = bp_service.generate_sql(payload)
     if not sql:
-        return QueryResponse(reply="Maaf, pertanyaan tersebut belum didukung sistem.", sql=sql, elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply="Maaf, pertanyaan tersebut belum didukung sistem.", sql=sql, session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 8: Validate SQL
+    # Step 9: Validate SQL
     if not bp_service.validate_sql(sql):
-        return QueryResponse(reply="Maaf, pertanyaan tersebut belum didukung sistem.", sql=sql, elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply="Maaf, pertanyaan tersebut belum didukung sistem.", sql=sql, session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 9: Execute SQL
+    # Step 10: Execute SQL
     try:
         result = bp_service.execute(sql)
     except DatabaseConnectionError:
-        return QueryResponse(reply="Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", sql=sql, result=[], elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply="Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", sql=sql, result=[], session_id=session_id, elapsed=round(time.time() - t0, 2))
 
     if not result:
-        return QueryResponse(reply="Data tidak ditemukan.", sql=sql, result=[], elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply="Data tidak ditemukan.", sql=sql, result=[], session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 10: Insight deterministic
+    # Step 11: Insight deterministic
     insight_service = InsightService()
     det_insight = insight_service.deterministic(payload, result)
 
-    # Step 11: Insight narration (opsional)
+    # Step 12: Insight narration (opsional)
     llm_insight = ""
     if req.insight_provider == "llm":
         llm_client = LLMClient(provider=req.insight_llm_provider)
         llm_insight = await insight_service.llm_narration(llm_client, intent, req.message, result, det_insight)
 
-    # Step 12: Reply formatter
+    # Step 13: Reply formatter (with conversation history context)
     if req.reply_provider == "llm":
-        reply = await generate_llm_reply(req.message, intent, result, payload, llm_provider=req.reply_llm_provider, timeout=120)
+        reply = await generate_llm_reply(
+            req.message, intent, result, payload,
+            llm_provider=req.reply_llm_provider,
+            timeout=120, history=history,
+        )
         if not reply:
             reply = format_bp_reply(payload, result)
     else:
         reply = format_bp_reply(payload, result)
 
+    # Store in memory
+    memory.add(session_id, req.message, reply, intent, sql, payload)
+
     return QueryResponse(
         reply=reply, sql=sql, result=serialize_dates(result),
-        intent=intent, ai_insight=llm_insight,
+        intent=intent, session_id=session_id, ai_insight=llm_insight,
         deterministic_insight=det_insight,
         elapsed=round(time.time() - t0, 2),
     )

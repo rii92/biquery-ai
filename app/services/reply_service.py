@@ -66,6 +66,7 @@ async def generate_llm_reply(
     payload: dict,
     llm_provider: str = "llamacpp",
     timeout: int = 120,
+    history: list = None,
 ) -> str:
     label = _resolve_label(intent)
     total_rows = len(result)
@@ -84,7 +85,12 @@ async def generate_llm_reply(
 
     filters_json = json.dumps(filters, indent=2, ensure_ascii=False) if filters else "Tidak ada"
 
-    prompt = f"""Kamu adalah analis data BP Batam yang sedang menjelaskan temuan kepada rekan kerja. Jawab dengan bahasa natural, mengalir, dan penuh insight — seperti ngobrol santai tapi berbasis data.
+    history_text = ""
+    if history:
+        from app.core.memory import history_to_text
+        history_text = history_to_text(history, question) + "\n\n"
+
+    prompt = f"""{history_text}Kamu adalah analis data BP Batam yang sedang menjelaskan temuan kepada rekan kerja. Jawab dengan bahasa natural, mengalir, dan penuh insight — seperti ngobrol santai tapi berbasis data.
 
 JUDUL LAPORAN: {label}
 PERTANYAAN: {question}
@@ -112,6 +118,9 @@ PANDUAN:
 - Jika data staf, soroti yang menonjol (positif/negatif).
 - Akhiri dengan 1 rekomendasi praktis yang bisa langsung ditindaklanjuti.
 - Gunakan bahasa Indonesia natural, seperti seorang analis senior bicara. Jangan kaku.
+- Jika ini adalah follow-up (lanjutan dari percakapan sebelumnya), jawab sesuai konteks.
+- Jika user bilang 'iya' atau 'lanjut', berikan detail tambahan atau breakdown yang lebih dalam.
+- Jika user bilang 'tidak', akhiri dengan tawaran bantuan lain.
 - JANGAN markdown, JANGAN emoji, JANGAN bullet.
 - JANGAN mengarang angka — jika data kosong, bilang saja.
 """

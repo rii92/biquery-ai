@@ -8,6 +8,18 @@ _BLACKLIST = [
     r"\b(drop|delete|truncate|alter|insert|update|create|exec|execute|shutdown)\b",
 ]
 
+_FOLLOWUP_WORDS = [
+    r"^iya$", r"^ya$", r"^y$", r"^ya\b",
+    r"^tentu$", r"^tentu\b",
+    r"^lanjut$",
+    r"^boleh$", r"^bisa$", r"^silakan$", r"^silahkan$",
+    r"^ok$", r"^oke$", r"^okee?$", r"^ok\.?$",
+    r"^siap$", r"^baik$", r"^setuju$", r"^iya dong$",
+    r"^tidak$", r"^nggak$", r"^gak$", r"^ga$", r"^enggak$",
+    r"^ga usah$", r"^tidak usah$",
+    r"^kagak$", r"^ndak$",
+]
+
 
 def is_blacklisted(question: str) -> bool:
     q = question.lower()
@@ -15,6 +27,25 @@ def is_blacklisted(question: str) -> bool:
         if re.search(pat, q):
             return True
     return False
+
+
+def is_followup(question: str) -> bool:
+    """Check if question is a short follow-up word (iya/tidak/lanjut/etc)."""
+    q = question.lower().strip().strip(".!? ")
+    for pat in _FOLLOWUP_WORDS:
+        if re.search(pat, q):
+            return True
+    return False
+
+
+def is_affirmative(question: str) -> bool:
+    """Check if follow-up is affirmative (iya/ya/lanjut) vs negative (tidak/nggak)."""
+    q = question.lower().strip().strip(".!? ")
+    neg = [r"^tidak", r"^nggak", r"^gak$", r"^ga$", r"^enggak", r"^kagak", r"^ndak", r"^ga usah", r"^tidak usah"]
+    for pat in neg:
+        if re.search(pat, q):
+            return False
+    return True
 
 
 def classify_by_keyword(question: str) -> Optional[Dict[str, Any]]:

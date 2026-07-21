@@ -4,13 +4,14 @@ import time
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted
+from app.ai.keyword_classifier import classify_by_keyword, is_blacklisted, is_followup, is_affirmative
 from app.ai.embedding_classifier import classify_by_embedding
 from app.ai.filter_resolver import FilterResolver
 from app.services.bp_database_service import BPDatabaseService, DatabaseConnectionError
 from app.services.bp_formatter_service import format_bp_reply
 from app.services.insight_service import InsightService
 from app.services.reply_service import generate_llm_reply
+from app.core.memory import get_memory
 
 logger = logging.getLogger("webhook")
 
@@ -61,6 +62,9 @@ async def webhook_health():
 @router.post("/webhook/whatsapp")
 async def webhook(msg: WhatsAppMessage):
     t0 = time.time()
+    memory = get_memory()
+    session_id = f"wa_{msg.sender}"
+    history = memory.get_history(session_id)
 
     # Step 1-2: Blacklist + Keyword
     if is_blacklisted(msg.message):
@@ -72,6 +76,20 @@ async def webhook(msg: WhatsAppMessage):
     if intent == "_greeting":
         return {"reply": payload.get("_reply", "Halo!"), "elapsed": round(time.time() - t0, 2)}
 
+    # Step 3.5: Follow-up
+    if not intent and history:
+        if is_followup(msg.message):
+            last = history[-1]
+            if is_affirmative(msg.message):
+                logger.info("Follow-up affirmative dari user=%s, reuse intent=%s", msg.sender, last.intent)
+                payload = {
+                    "intent": last.intent,
+                    **last.payload,
+                }
+                intent = last.intent
+            else:
+                return {"reply": "Baik, ada pertanyaan lain yang bisa saya bantu?", "elapsed": round(time.time() - t0, 2)}
+
     # Step 4: Embedding Classifier (fallback)
     if not intent:
         emb = classify_by_embedding(msg.message)
@@ -82,12 +100,13 @@ async def webhook(msg: WhatsAppMessage):
     if not intent:
         return {"reply": "Maaf, untuk pertanyaan tersebut data belum tersedia di sistem kami.", "elapsed": round(time.time() - t0, 2)}
 
-    # FilterResolver: temporal keyword → SQL params
+    # FilterResolver: temporal keyword  SQL params
     if intent and intent not in ("_greeting",):
-        resolver = FilterResolver()
-        resolved = resolver.apply(msg.message, intent)
-        if resolved:
-            payload.update(resolved)
+        if not (is_followup(msg.message) and history):
+            resolver = FilterResolver()
+            resolved = resolver.apply(msg.message, intent)
+            if resolved:
+                payload.update(resolved)
 
     sql = bp_service.generate_sql(payload)
     if not sql or not bp_service.validate_sql(sql):
@@ -107,14 +126,16 @@ async def webhook(msg: WhatsAppMessage):
     reply = ""
     for prov in ("llamacpp", "local"):
         logger.info("Mencoba LLM provider=%s untuk intent=%s", prov, intent)
-        reply = await generate_llm_reply(msg.message, intent, result, payload, llm_provider=prov, timeout=120)
+        reply = await generate_llm_reply(msg.message, intent, result, payload, llm_provider=prov, timeout=120, history=history)
         if reply:
-            logger.info("Berhasil pakai provider=%s — %d chars", prov, len(reply))
+            logger.info("Berhasil pakai provider=%s \u2014 %d chars", prov, len(reply))
             break
         logger.warning("Provider=%s gagal, coba provider berikutnya", prov)
 
     if not reply:
         logger.warning("Semua LLM gagal, fallback ke format deterministik")
         reply = format_bp_reply(payload, result)
+
+    memory.add(session_id, msg.message, reply, intent, sql, payload)
 
     return {"reply": reply, "elapsed": round(time.time() - t0, 2)}
