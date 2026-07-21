@@ -26,12 +26,28 @@ class Exchange:
 
 
 _EXPIRY_SECONDS = 1800  # 30 menit
+MAX_EXCHANGES_BEFORE_RESET = 3  # setelah N exchange, memory di-reset (QA fix)
 
 
 class ConversationMemory:
     def __init__(self, max_history: int = 3):
         self._store: Dict[str, List[Exchange]] = {}
         self.max_history = max_history
+
+    def should_reset(self, session_id: str) -> bool:
+        """Cek apakah session sudah mencapai batas exchange dan perlu di-reset."""
+        history = self._store.get(session_id, [])
+        return len(history) >= MAX_EXCHANGES_BEFORE_RESET
+
+    def check_and_reset(self, session_id: str) -> bool:
+        """Reset memory if limit reached. Returns True if reset was performed."""
+        if self.should_reset(session_id):
+            logger = __import__("logging").getLogger("memory")
+            logger.info("Memory reset for session %s — %d exchanges reached",
+                        session_id, MAX_EXCHANGES_BEFORE_RESET)
+            self.clear(session_id)
+            return True
+        return False
 
     def add(self, session_id: str, user: str, assistant: str, intent: str, sql: str, payload: dict):
         if session_id not in self._store:

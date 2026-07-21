@@ -1,55 +1,20 @@
 """Resolves natural language temporal keywords into SQL filter clauses per source/intent."""
 
+import json
+import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, Optional
 
 from app.intents.loader import get_intent
+
+logger = logging.getLogger("filter_resolver")
 
 MONTH_NAMES = {
     "januari": "01", "februari": "02", "maret": "03",
     "april": "04", "mei": "05", "juni": "06",
     "juli": "07", "agustus": "08", "september": "09",
     "oktober": "10", "november": "11", "desember": "12",
-}
-
-SOURCE_PARAM_MAPS = {
-    "bp": {
-        "bp_all_kpi_card": {
-            "tahun": ("tahun", "TO_CHAR(TGL_STATUS_TERAKHIR, 'YYYY') = '{v}'"),
-            "bulan": ("bulan", "TO_CHAR(TGL_STATUS_TERAKHIR, 'MM') = '{v}'"),
-            "tanggal_awal": ("tgl_status_terakhir", "TRUNC(TGL_STATUS_TERAKHIR) >= TO_DATE('{v}','YYYY-MM-DD')"),
-            "tanggal_akhir": ("tgl_status_terakhir", "TRUNC(TGL_STATUS_TERAKHIR) <= TO_DATE('{v}','YYYY-MM-DD')"),
-        },
-        "__default__": {
-            "tahun": ("filter_tahun", "TAHUN = '{v}'"),
-            "bulan": ("filter_bulan", "BULAN = '{v}'"),
-            "tanggal_awal": ("rentang_tgl_masuk", "TGL_MASUK >= TO_DATE('{v}','YYYY-MM-DD')"),
-            "tanggal_akhir": ("rentang_tgl_masuk", "TGL_MASUK <= TO_DATE('{v}','YYYY-MM-DD')"),
-        },
-    },
-    "oss": {
-        "__default__": {
-            "tahun": ("filter_tahun", "TAHUN = '{v}'"),
-            "bulan": ("filter_bulan", "BULAN = '{v}'"),
-            "tanggal_awal": ("rentang_tgl_masuk", "TGL_MASUK >= TO_DATE('{v}','YYYY-MM-DD')"),
-            "tanggal_akhir": ("rentang_tgl_masuk", "TGL_MASUK <= TO_DATE('{v}','YYYY-MM-DD')"),
-        },
-    },
-    "iboss": {
-        "__default__": {
-            "tahun": ("pilih_tahun", "TO_CHAR(TX_PERMOHONAN.TGL_DAFTAR, 'YYYY') = '{v}'"),
-            "bulan": ("pilih_bulan", "TO_CHAR(TX_PERMOHONAN.TGL_DAFTAR, 'FMMM') = '{v}'"),
-            "tanggal_awal": ("rentang_waktu", "TX_PERMOHONAN.TGL_DAFTAR >= TO_DATE('{v}','YYYY-MM-DD')"),
-            "tanggal_akhir": ("rentang_waktu", "TX_PERMOHONAN.TGL_DAFTAR <= TO_DATE('{v}','YYYY-MM-DD')"),
-        },
-        "iboss_rata_waktu_role": {
-            "tahun": ("pilih_tahun", "TO_CHAR(T_LOG_LICENSING.ACTION_TIME, 'YYYY') = '{v}'"),
-            "bulan": ("pilih_bulan", "TO_CHAR(T_LOG_LICENSING.ACTION_TIME, 'FMMM') = '{v}'"),
-            "tanggal_awal": ("rentang_waktu", "T_LOG_LICENSING.ACTION_TIME >= TO_DATE('{v}','YYYY-MM-DD')"),
-            "tanggal_akhir": ("rentang_waktu", "T_LOG_LICENSING.ACTION_TIME <= TO_DATE('{v}','YYYY-MM-DD')"),
-        },
-    },
 }
 
 MONTH_PATTERN = '|'.join(MONTH_NAMES.keys())
@@ -75,6 +40,26 @@ STATUS_KEYWORDS = [
     (r'\bcabut\b', "CABUT"),
     (r'\bdicabut\b', "CABUT"),
 ]
+
+
+def _get_filter_mappings(intent_id: str) -> dict:
+    """Load filter_mappings from intents.json for the given intent."""
+    meta = get_intent(intent_id)
+    return (meta or {}).get("filter_mappings", {})
+
+
+def _validate_mappings(mappings: dict, intent_id: str):
+    """Log warning for mapping keys whose param doesn't exist in intent."""
+    meta = get_intent(intent_id)
+    if not meta:
+        return
+    intent_params = set(meta.get("params", {}).keys())
+    for key, fm in mappings.items():
+        if fm["param"] not in intent_params:
+            logger.warning(
+                "filter_mappings[%s].param='%s' not found in intent %s params",
+                key, fm["param"], intent_id,
+            )
 
 
 class FilterResolver:
@@ -136,75 +121,138 @@ class FilterResolver:
 
         for pattern, etype, value in IZIN_PATTERNS:
             if re.search(pattern, q_upper):
-                entities["izin_type"] = value
+                entities["perizinan"] = value
                 entities["izin_column"] = etype
                 break
 
         for pattern, status in STATUS_KEYWORDS:
             if re.search(pattern, question.lower()):
-                entities["status"] = status
+                entities["kategori_status"] = status
                 break
 
         return entities
 
+    def map_to_sql(self, standard_filters: dict, intent_id: str) -> dict:
+        """Map standard filter keys to SQL clause payload using filter_mappings.
+
+        Args:
+            standard_filters: dict like {"tahun": "2026", "perizinan": "PB"}
+            intent_id: target intent
+
+        Returns:
+            Dict of SQL param → SQL clause ready for payload merge.
+        """
+        mappings = _get_filter_mappings(intent_id)
+        payload = {}
+
+        for key, value in standard_filters.items():
+            if key in mappings:
+                fm = mappings[key]
+                param = fm["param"]
+                sql = fm["sql"].replace("{value}", str(value))
+                payload[param] = sql
+
+        return payload
+
     def apply(self, question: str, intent_id: str) -> Dict[str, str]:
         """Resolve temporal keywords + entities, map to intent-specific SQL clauses.
+
+        This is the sync (regex-based) version.
+        For LLM-based extraction, use resolve_via_llm() instead.
 
         Returns:
             Dict of SQL param → SQL clause ready to be merged into payload.
         """
-        source = intent_id.split("_")[0]
-        source_map = SOURCE_PARAM_MAPS.get(source, {})
-        intent_map = source_map.get(intent_id, source_map.get("__default__", {}))
+        mappings = _get_filter_mappings(intent_id)
+        _validate_mappings(mappings, intent_id)
 
-        meta = get_intent(intent_id)
-        intent_params = meta.get("params", {}) if meta else {}
-
-        payload = {}
-
-        # ── Temporal filters ──
         standard = self.resolve(question)
-        if "tahun" in standard and "tahun" in intent_map:
-            param, template = intent_map["tahun"]
-            payload[param] = template.replace("{v}", standard["tahun"])
-
-        if "bulan" in standard and "bulan" in intent_map:
-            param, template = intent_map["bulan"]
-            payload[param] = template.replace("{v}", standard["bulan"])
-
-        rentang_parts = []
-        if "tanggal_awal" in standard and "tanggal_awal" in intent_map:
-            param, template = intent_map["tanggal_awal"]
-            rentang_parts.append(template.replace("{v}", standard["tanggal_awal"]))
-        if "tanggal_akhir" in standard and "tanggal_akhir" in intent_map:
-            param, template = intent_map["tanggal_akhir"]
-            rentang_parts.append(template.replace("{v}", standard["tanggal_akhir"]))
-        if rentang_parts:
-            target = intent_map.get("tanggal_awal", intent_map.get("tanggal_akhir"))[0]
-            payload[target] = " AND ".join(rentang_parts)
-
-        # ── Entity filters (izin type, status) ──
         entities = self.resolve_entities(question)
 
-        if "izin_type" in entities:
-            izin = entities["izin_type"]
-            col = entities.get("izin_column", "JENIS_IZIN")
+        all_filters = {**standard, **entities}
+        return self.map_to_sql(all_filters, intent_id)
 
-            if "perizinan" in intent_params:
-                payload["perizinan"] = f"UPPER(JENIS_IZIN) = UPPER('{izin}')"
-            elif "pilih_izin" in intent_params:
-                if source == "bp":
-                    payload["pilih_izin"] = f"(UPPER(JENIS_IZIN) = UPPER('{izin}') OR UPPER(KATEGORI_IZIN_LALIN) = UPPER('{izin}'))"
+    async def resolve_via_llm(self, question: str, intent_id: str) -> dict:
+        """Async: use LLM to extract structured filter values from question.
+
+        Returns dict of standard filter keys → values, e.g.:
+        {"tahun": "2026", "perizinan": "PB", "kategori_status": "TOLAK"}
+
+        Falls back to empty dict if LLM unavailable or parsing fails.
+        """
+        mappings = _get_filter_mappings(intent_id)
+        if not mappings:
+            return {}
+
+        from app.llm.client import LLMClient
+
+        meta = get_intent(intent_id)
+        intent_params = (meta or {}).get("params", {})
+
+        lines = []
+        for key, fm in mappings.items():
+            desc = intent_params.get(fm["param"], key)
+            example_val = _example_value(key)
+            example_sql = fm["sql"].replace("{value}", example_val)
+            lines.append(f"- \"{key}\": {desc} (contoh SQL: {example_sql})")
+
+        filters_text = "\n".join(lines)
+
+        prompt = (
+            f"Extract filter values from this question about BP Batam data.\n\n"
+            f"Available filters for this query type:\n"
+            f"{filters_text}\n\n"
+            f"Question: {question}\n\n"
+            f"Return ONLY a JSON object with the extracted filter keys and values.\n"
+            f'Example: {{"tahun": "2026", "perizinan": "PB"}}\n'
+            f"If a filter is not mentioned in the question, OMIT it from the JSON.\n"
+            f"Only use keys from the available filters list above.\n"
+            f"Return ONLY the raw JSON, no explanation, no markdown."
+        )
+
+        try:
+            llm = LLMClient(provider="llamacpp")
+            raw = await llm.generate(prompt, temperature=0.1, max_tokens=256, timeout=30)
+            raw = raw.strip()
+            # Try to find and parse JSON
+            match = re.search(r"\{[\s\S]*\}", raw)
+            if not match:
+                logger.warning("resolve_via_llm: no JSON found in response: %.100s", raw)
+                return {}
+
+            extracted = json.loads(match.group())
+
+            if not isinstance(extracted, dict):
+                return {}
+
+            # Validate — only keep keys that are in this intent's filter_mappings
+            valid = {}
+            for k, v in extracted.items():
+                if k in mappings:
+                    valid[k] = str(v)
                 else:
-                    payload["pilih_izin"] = f"UPPER({col}) = UPPER('{izin}')"
-            elif "pilih_sub_izin" in intent_params and col == "SUB_JENIS_IZIN":
-                payload["pilih_sub_izin"] = f"UPPER({col}) = UPPER('{izin}')"
-            elif "pilih_izin_iboss" in intent_params:
-                payload["pilih_izin_iboss"] = f"UPPER(TX_PERMOHONAN.KATEGORI_IZIN) = UPPER('{izin}')"
+                    logger.warning("resolve_via_llm: unknown key '%s' for intent %s", k, intent_id)
 
-        if "status" in entities:
-            status = entities["status"]
-            if "kategori_status" in intent_params:
-                payload["kategori_status"] = f"KATEGORI_STATUS = '{status}'"
+            if valid:
+                logger.info("resolve_via_llm OK — extracted %d filter(s): %s", len(valid), valid)
+            return valid
 
-        return payload
+        except json.JSONDecodeError as e:
+            logger.warning("resolve_via_llm: JSON parse error: %s", e)
+        except Exception as e:
+            logger.warning("resolve_via_llm failed: %s", e)
+
+        return {}
+
+
+def _example_value(key: str) -> str:
+    """Return a plausible example value for a filter key (for LLM prompt)."""
+    examples = {
+        "tahun": "2026",
+        "bulan": "01",
+        "tanggal_awal": "2026-01-01",
+        "tanggal_akhir": "2026-12-31",
+        "perizinan": "PB",
+        "kategori_status": "TERBIT",
+    }
+    return examples.get(key, "<nilai>")

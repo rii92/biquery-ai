@@ -14,10 +14,24 @@ from app.services.bp_formatter_service import format_bp_reply
 from app.services.insight_service import InsightService
 from app.services.reply_service import generate_llm_reply
 from app.core.json_util import DateTimeEncoder, serialize_dates
-from app.core.memory import get_memory, history_to_text
+from app.core.memory import get_memory, history_to_text, MAX_EXCHANGES_BEFORE_RESET
 
 router = APIRouter()
 bp_service = BPDatabaseService()
+
+_NO_DATA_SUGGESTIONS = (
+    "Data tidak ditemukan. Coba pertanyaan lain:\n"
+    "\u2022 Berapa total perizinan?\n"
+    "\u2022 Berapa nilai SLA?\n"
+    "\u2022 Berapa kinerja perizinan?\n"
+    "\u2022 Siapa staf yang paling produktif?\n"
+    "\u2022 Bagaimana tren inflow outflow?"
+)
+
+_MAX_FOLLOWUP_EXCEEDED = (
+    f"Percakapan sudah mencapai {MAX_EXCHANGES_BEFORE_RESET} kali. "
+    "Silakan mulai dengan pertanyaan baru."
+)
 
 
 class QueryRequest(BaseModel):
@@ -69,6 +83,18 @@ async def _sse_process(req_data: dict):
 
     memory = get_memory()
     session_id = req_data.get("session_id", "") or f"anon_{int(t0)}"
+
+    # QA Fix 1 & 3: Auto-reset memory if max exchanges reached
+    if memory.check_and_reset(session_id):
+        if is_followup(message) or needs_context(message):
+            yield _event({
+                "done": True,
+                "reply": _MAX_FOLLOWUP_EXCEEDED,
+                "session_id": session_id,
+                "elapsed": round(time.time() - t0, 2), "progress": 100,
+            })
+            return
+
     history = memory.get_history(session_id)
 
     if not message:
@@ -156,18 +182,32 @@ async def _sse_process(req_data: dict):
             })
             return
 
-    # ── Step 5.5: FilterResolver (temporal keyword → SQL params) ──
+    # ── Step 5.5: FilterResolver (LLM + regex, skip on follow-up) ──
     if intent and intent not in ("_greeting",):
         is_follow = is_followup(message)
         needs_ctx = needs_context(message)
         if not ((is_follow or needs_ctx) and history):
             resolver = FilterResolver()
-            resolved = resolver.apply(message, intent)
-            if resolved:
-                payload.update(resolved)
-                for k in resolved:
-                    if k in req_data and not req_data.get(k):
-                        req_data[k] = resolved[k]
+
+            # Try LLM-based filter extraction first
+            yield _event({"step": "Mengekstrak filter dari pertanyaan...", "progress": 35})
+            llm_filters = await resolver.resolve_via_llm(message, intent)
+            if llm_filters:
+                resolved = resolver.map_to_sql(llm_filters, intent)
+                if resolved:
+                    payload.update(resolved)
+                    for k in resolved:
+                        if k in req_data and not req_data.get(k):
+                            req_data[k] = resolved[k]
+
+            # Also apply regex-based extraction as fallback/supplement
+            regex_resolved = resolver.apply(message, intent)
+            if regex_resolved:
+                for k, v in regex_resolved.items():
+                    if k not in payload or not payload.get(k):
+                        payload[k] = v
+                        if k in req_data and not req_data.get(k):
+                            req_data[k] = v
 
     # ── Step 6: Terapkan filter ──
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",
@@ -210,7 +250,7 @@ async def _sse_process(req_data: dict):
 
     if not result:
         yield _event({
-            "done": True, "reply": "Data tidak ditemukan.", "sql": sql, "result": [],
+            "done": True, "reply": _NO_DATA_SUGGESTIONS, "sql": sql, "result": [],
             "elapsed": round(time.time() - t0, 2), "progress": 100,
         })
         return
@@ -259,6 +299,11 @@ async def query(req: QueryRequest):
     loop = asyncio.get_event_loop()
     memory = get_memory()
     session_id = req.session_id or f"anon_{int(t0)}"
+
+    if memory.check_and_reset(session_id):
+        if is_followup(req.message) or needs_context(req.message):
+            return QueryResponse(reply=_MAX_FOLLOWUP_EXCEEDED, session_id=session_id, elapsed=round(time.time() - t0, 2))
+
     history = memory.get_history(session_id)
 
     # Step 1-2: Blacklist + Keyword
@@ -317,16 +362,26 @@ async def query(req: QueryRequest):
     if not intent:
         return QueryResponse(reply="Maaf, tidak dapat memahami pertanyaan.", session_id=session_id, elapsed=round(time.time() - t0, 2))
 
-    # Step 6.5: FilterResolver (temporal keyword -> SQL params)
+    # Step 6.5: FilterResolver (LLM + regex, skip on follow-up)
     if intent and intent not in ("_greeting",):
-        # Only run resolver if NOT a follow-up (payload already has filters)
         is_follow = is_followup(req.message)
         needs_ctx = needs_context(req.message)
         if not ((is_follow or needs_ctx) and history):
             resolver = FilterResolver()
-            resolved = resolver.apply(req.message, intent)
-            if resolved:
-                payload.update(resolved)
+
+            # Try LLM-based filter extraction first
+            llm_filters = await resolver.resolve_via_llm(req.message, intent)
+            if llm_filters:
+                resolved = resolver.map_to_sql(llm_filters, intent)
+                if resolved:
+                    payload.update(resolved)
+
+            # Also apply regex-based extraction as fallback/supplement
+            regex_resolved = resolver.apply(req.message, intent)
+            if regex_resolved:
+                for k, v in regex_resolved.items():
+                    if k not in payload or not payload.get(k):
+                        payload[k] = v
 
     # Step 7: Apply explicit request filters
     for k in ("tgl_status_terakhir", "perizinan", "kategori_status", "tahun", "bulan",
@@ -352,7 +407,7 @@ async def query(req: QueryRequest):
         return QueryResponse(reply="Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", sql=sql, result=[], session_id=session_id, elapsed=round(time.time() - t0, 2))
 
     if not result:
-        return QueryResponse(reply="Data tidak ditemukan.", sql=sql, result=[], session_id=session_id, elapsed=round(time.time() - t0, 2))
+        return QueryResponse(reply=_NO_DATA_SUGGESTIONS, sql=sql, result=[], session_id=session_id, elapsed=round(time.time() - t0, 2))
 
     # Step 11: Insight deterministic
     insight_service = InsightService()

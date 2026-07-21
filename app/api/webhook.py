@@ -11,7 +11,7 @@ from app.services.bp_database_service import BPDatabaseService, DatabaseConnecti
 from app.services.bp_formatter_service import format_bp_reply
 from app.services.insight_service import InsightService
 from app.services.reply_service import generate_llm_reply
-from app.core.memory import get_memory
+from app.core.memory import get_memory, MAX_EXCHANGES_BEFORE_RESET
 
 logger = logging.getLogger("webhook")
 
@@ -24,6 +24,21 @@ class WhatsAppMessage(BaseModel):
 
 
 bp_service = BPDatabaseService()
+
+
+_NO_DATA_SUGGESTIONS = (
+    "Data tidak ditemukan. Coba pertanyaan lain:\n"
+    "\u2022 Berapa total perizinan?\n"
+    "\u2022 Berapa nilai SLA?\n"
+    "\u2022 Berapa kinerja perizinan?\n"
+    "\u2022 Siapa staf yang paling produktif?\n"
+    "\u2022 Bagaimana tren inflow outflow?"
+)
+
+_MAX_FOLLOWUP_EXCEEDED = (
+    f"Percakapan sudah mencapai {MAX_EXCHANGES_BEFORE_RESET} kali. "
+    "Silakan mulai dengan pertanyaan baru."
+)
 
 
 @router.get("/webhook/health")
@@ -64,6 +79,13 @@ async def webhook(msg: WhatsAppMessage):
     t0 = time.time()
     memory = get_memory()
     session_id = f"wa_{msg.sender}"
+
+    # ── QA Fix 1 & 3: Auto-reset memory if max exchanges reached ──
+    if memory.check_and_reset(session_id):
+        # If user sends a follow-up after reset, tell them to start fresh
+        if is_followup(msg.message) or needs_context(msg.message):
+            return {"reply": _MAX_FOLLOWUP_EXCEEDED, "elapsed": round(time.time() - t0, 2)}
+
     history = memory.get_history(session_id)
 
     # Step 1-2: Blacklist + Keyword
@@ -102,15 +124,29 @@ async def webhook(msg: WhatsAppMessage):
     if not intent:
         return {"reply": "Maaf, untuk pertanyaan tersebut data belum tersedia di sistem kami.", "elapsed": round(time.time() - t0, 2)}
 
-    # FilterResolver: temporal keyword  SQL params
-    if intent and intent not in ("_greeting",):
+    # Step 5: FilterResolver (sync regex + async LLM)
+    if intent not in ("_greeting",):
         is_follow = is_followup(msg.message)
         needs_ctx = needs_context(msg.message)
         if not ((is_follow or needs_ctx) and history):
             resolver = FilterResolver()
-            resolved = resolver.apply(msg.message, intent)
-            if resolved:
-                payload.update(resolved)
+
+            # Try LLM-based filter extraction first (async)
+            llm_filters = await resolver.resolve_via_llm(msg.message, intent)
+            if llm_filters:
+                # If status filter is extracted but intent doesn't support it, it's silently ignored
+                resolved = resolver.map_to_sql(llm_filters, intent)
+                if resolved:
+                    payload.update(resolved)
+                    logger.info("LLM filter extraction applied: %s", llm_filters)
+
+            # Also apply regex-based extraction as fallback/supplement
+            regex_resolved = resolver.apply(msg.message, intent)
+            if regex_resolved:
+                # Merge but don't overwrite LLM results
+                for k, v in regex_resolved.items():
+                    if k not in payload or not payload.get(k):
+                        payload[k] = v
 
     sql = bp_service.generate_sql(payload)
     if not sql or not bp_service.validate_sql(sql):
@@ -122,7 +158,7 @@ async def webhook(msg: WhatsAppMessage):
         return {"reply": "Maaf, database sedang tidak tersedia. Silakan coba lagi nanti.", "elapsed": round(time.time() - t0, 2)}
 
     if not result:
-        return {"reply": "Data tidak ditemukan.", "elapsed": round(time.time() - t0, 2)}
+        return {"reply": _NO_DATA_SUGGESTIONS, "elapsed": round(time.time() - t0, 2)}
 
     det_insight = InsightService().deterministic(payload, result)
 
