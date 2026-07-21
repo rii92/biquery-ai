@@ -49,13 +49,14 @@ def needs_context(question: str) -> bool:
     q = question.lower().strip().strip(".!? ")
     words = q.split()
 
-    # Very short messages with no intent match are almost certainly follow-ups
-    if len(words) < 4:
+    # Short messages with no intent match are almost certainly follow-ups
+    if len(words) < 8:
         return True
 
     # Check for continuation/recommendation indicator words
     indicators = [
-        r"\brekomendasi\b", r"\b(saran|masukan|usul)\b",
+        r"\brekomendasi\b", r"\bdirekomendasikan\b",
+        r"\b(saran|masukan|usul)\b",
         r"\bselanjutnya\b", r"\bberikutnya\b", r"\blanjut\w*\b",
         r"\bdetail\b", r"\bdetil\b", r"\brinci\b", r"\brincian\b",
         r"\bterus\b", r"\blalu\b", r"\bkemudian\b",
@@ -66,6 +67,8 @@ def needs_context(question: str) -> bool:
         r"\bperbandingan\b", r"\bbanding\b",
         r"\bgrafik\b", r"\bchart\b", r"\bdiagram\b",
         r"\btabel\b", r"\btampilkan\b",
+        r"\bdari\s+(ini|itu|situ|data|hasil|tersebut)\b",
+        r"\bberdasarkan\s+(ini|itu|data|hasil|tersebut)\b",
     ]
     for pat in indicators:
         if re.search(pat, q):
